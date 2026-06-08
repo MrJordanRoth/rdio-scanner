@@ -40,6 +40,82 @@ var PostgresqlSchema = []string{
     "systems" text NOT NULL DEFAULT ''
   );`,
 
+	`CREATE TABLE IF NOT EXISTS "users" (
+    "userId" bigserial NOT NULL PRIMARY KEY,
+    "username" text NOT NULL UNIQUE,
+    "passwordHash" text NOT NULL,
+  "email" text NOT NULL UNIQUE,
+  "isSuspended" boolean NOT NULL DEFAULT false
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roles" (
+    "roleId" bigserial NOT NULL PRIMARY KEY,
+    "name" text NOT NULL UNIQUE,
+  "description" text NOT NULL DEFAULT '',
+  "connectionLimit" integer NOT NULL DEFAULT 0,
+  "delaySeconds" integer NOT NULL DEFAULT 0
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "userRoles" (
+    "userRoleId" bigserial NOT NULL PRIMARY KEY,
+    "userId" bigint NOT NULL,
+    "roleId" bigint NOT NULL,
+    UNIQUE ("userId", "roleId"),
+    CONSTRAINT "userRoles_userId" FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "userRoles_roleId" FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleManagers" (
+    "roleManagerId" bigserial NOT NULL PRIMARY KEY,
+    "roleId" bigint NOT NULL,
+    "userId" bigint NOT NULL,
+    UNIQUE ("roleId", "userId"),
+    CONSTRAINT "roleManagers_roleId" FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "roleManagers_userId" FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleSystems" (
+    "roleSystemId" bigserial NOT NULL PRIMARY KEY,
+    "roleId" bigint NOT NULL,
+    "systemId" bigint NOT NULL,
+    UNIQUE ("roleId", "systemId"),
+    CONSTRAINT "roleSystems_roleId" FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "roleSystems_systemId" FOREIGN KEY ("systemId") REFERENCES "systems" ("systemId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleTalkgroups" (
+    "roleTalkgroupId" bigserial NOT NULL PRIMARY KEY,
+    "roleId" bigint NOT NULL,
+    "talkgroupId" bigint NOT NULL,
+    UNIQUE ("roleId", "talkgroupId"),
+    CONSTRAINT "roleTalkgroups_roleId" FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "roleTalkgroups_talkgroupId" FOREIGN KEY ("talkgroupId") REFERENCES "talkgroups" ("talkgroupId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "invites" (
+    "inviteId" bigserial NOT NULL PRIMARY KEY,
+    "inviteCode" text NOT NULL UNIQUE,
+    "isUsed" boolean NOT NULL DEFAULT false,
+  "expirationDate" bigint NOT NULL DEFAULT 0,
+  "roleId" bigint NOT NULL DEFAULT 0
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "mobileTokens" (
+    "tokenString" text NOT NULL PRIMARY KEY,
+    "userId" bigint NOT NULL,
+    "createdAt" bigint NOT NULL DEFAULT 0,
+    CONSTRAINT "mobileTokens_userId" FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "accessCodes" (
+    "accessCodeId" bigserial NOT NULL PRIMARY KEY,
+    "userId" bigint NOT NULL,
+    "code" text NOT NULL UNIQUE,
+    "label" text NOT NULL DEFAULT '',
+    "createdAt" bigint NOT NULL DEFAULT 0,
+    CONSTRAINT "accessCodes_userId" FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
 	`CREATE TABLE IF NOT EXISTS "downstreams" (
     "downstreamId" bigserial NOT NULL PRIMARY KEY,
     "apikey" text NOT NULL,
@@ -70,7 +146,6 @@ var PostgresqlSchema = []string{
     "alert" text NOT NULL DEFAULT '',
     "autoPopulate" boolean NOT NULL DEFAULT false,
     "blacklists" text NOT NULL DEFAULT '',
-    "delay" integer NOT NULL DEFAULT 0,
     "label" text NOT NULL,
     "led" text NOT NULL DEFAULT '',
     "order" integer NOT NULL DEFAULT 0,
@@ -90,7 +165,6 @@ var PostgresqlSchema = []string{
 	`CREATE TABLE IF NOT EXISTS "talkgroups" (
     "talkgroupId" bigserial NOT NULL PRIMARY KEY,
     "alert" text NOT NULL DEFAULT '',
-    "delay" integer NOT NULL DEFAULT 0,
     "frequency" integer NOT NULL DEFAULT 0,
     "label" text NOT NULL,
     "led" text NOT NULL DEFAULT '',

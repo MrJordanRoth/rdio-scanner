@@ -1,0 +1,42 @@
+<mat-card appearance="outlined" class="sessions-card">
+    <mat-card-header>
+        <mat-card-title>Active Sessions</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+        <div class="toolbar">
+            <button mat-flat-button color="primary" type="button" (click)="reload()">Refresh</button>
+        </div>
+
+        <table mat-table [dataSource]="sessions" class="sessions-table">
+            <ng-container matColumnDef="username">
+                <th mat-header-cell *matHeaderCellDef>Username</th>
+                <td mat-cell *matCellDef="let session">{{ session.username || 'Unknown' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="ipAddress">
+                <th mat-header-cell *matHeaderCellDef>IP Address</th>
+                <td mat-cell *matCellDef="let session">{{ session.ipAddress || 'N/A' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="connectionDuration">
+                <th mat-header-cell *matHeaderCellDef>Connection Duration</th>
+                <td mat-cell *matCellDef="let session">{{ formatDuration(session.connectionSeconds) }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="action">
+                <th mat-header-cell *matHeaderCellDef>Action</th>
+                <td mat-cell *matCellDef="let session">
+                    <button mat-button color="warn" type="button" (click)="kick(session)">Kick</button>
+                </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+
+        <div class="empty" *ngIf="sessions.length === 0">
+            No active authenticated websocket sessions.
+        </div>
+    </mat-card-content>
+</mat-card>

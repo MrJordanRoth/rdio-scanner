@@ -2,6 +2,37 @@
   <ng-container [formGroup]="form">
     <div class="row">
       <p>
+        <span class="mat-body">Anonymous Listening</span><br>
+        <span class="mat-caption">Allow unauthenticated users to connect to the scanner and listen to audio without
+        logging in. The admin portal always requires authentication.</span>
+      </p>
+      <div>
+        <mat-slide-toggle color="primary" formControlName="anonymousListening"></mat-slide-toggle>
+      </div>
+    </div>
+    <div class="row">
+      <p>
+        <span class="mat-body">Enable Public Registration</span><br>
+        <span class="mat-caption">Allow users to register without an invite code. New public users are assigned the default role.</span>
+      </p>
+      <div>
+        <mat-slide-toggle color="primary" formControlName="enablePublicRegistration"></mat-slide-toggle>
+      </div>
+    </div>
+    <div class="row">
+      <p>
+        <span class="mat-body">Default Registration Role</span><br>
+        <span class="mat-caption">Role assigned when users register without an invite code.</span>
+      </p>
+      <mat-form-field floatLabel="auto">
+        <mat-select formControlName="defaultRoleId" placeholder="Default Role">
+          <mat-option [value]="0">Select a role</mat-option>
+          <mat-option *ngFor="let role of roles" [value]="role.id || 0">{{ role.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <div class="row">
+      <p>
         <span class="mat-body">12-Hour Time Format</span><br>
         <span class="mat-caption">Display time stamp in 12-hour format.</span>
       </p>

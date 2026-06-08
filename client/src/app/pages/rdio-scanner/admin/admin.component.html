@@ -1,6 +1,66 @@
-<h1 class="mat-h1">Rdio Scanner server v{{version}}</h1>
-<div>
-    <mat-card appearance="outlined">
-        <rdio-scanner-admin></rdio-scanner-admin>
-    </mat-card>
-</div>
+<mat-sidenav-container class="admin-layout">
+    <mat-sidenav mode="side" opened class="admin-sidebar">
+        <div class="sidebar-main">
+            @if (isAdmin) {
+                <div class="mat-subtitle-2 section-title">Navigation</div>
+                <mat-nav-list>
+                    <a mat-list-item routerLink="./" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active-link">
+                        <mat-icon>dashboard</mat-icon>
+                        <span>Dashboard</span>
+                    </a>
+                </mat-nav-list>
+
+                <div class="mat-subtitle-2 section-title">System</div>
+                <mat-nav-list>
+                    <a mat-list-item routerLink="./config" routerLinkActive="active-link">
+                        <mat-icon>settings</mat-icon>
+                        <span>Config</span>
+                    </a>
+                    <a mat-list-item routerLink="./logs" routerLinkActive="active-link">
+                        <mat-icon>article</mat-icon>
+                        <span>Logs</span>
+                    </a>
+                    <a mat-list-item routerLink="./tools" routerLinkActive="active-link">
+                        <mat-icon>build</mat-icon>
+                        <span>Tools</span>
+                    </a>
+                </mat-nav-list>
+            }
+
+            @if (canManageUsersAndInvites) {
+                <div class="mat-subtitle-2 section-title">User Management</div>
+                <mat-nav-list>
+                    <a mat-list-item routerLink="./users" routerLinkActive="active-link">
+                        <mat-icon>group</mat-icon>
+                        <span>Users</span>
+                    </a>
+                    @if (isAdmin) {
+                        <a mat-list-item routerLink="./roles" routerLinkActive="active-link">
+                            <mat-icon>admin_panel_settings</mat-icon>
+                            <span>Roles</span>
+                        </a>
+                    }
+                    <a mat-list-item routerLink="./invites" routerLinkActive="active-link">
+                        <mat-icon>mail</mat-icon>
+                        <span>Invites</span>
+                    </a>
+                    <a mat-list-item routerLink="./active-sessions" routerLinkActive="active-link">
+                        <mat-icon>bolt</mat-icon>
+                        <span>Active Sessions</span>
+                    </a>
+                </mat-nav-list>
+            }
+        </div>
+
+        <div class="sidebar-footer">
+            <button mat-button class="logout-link" type="button" (click)="logout()">
+                <mat-icon>logout</mat-icon>
+                <span>Logout</span>
+            </button>
+        </div>
+    </mat-sidenav>
+
+    <mat-sidenav-content class="admin-content">
+        <router-outlet></router-outlet>
+    </mat-sidenav-content>
+</mat-sidenav-container>

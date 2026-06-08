@@ -14,7 +14,7 @@
         <mat-icon *ngIf="system.invalid" color="warn">error</mat-icon>
       </mat-panel-title>
     </mat-expansion-panel-header>
-    <rdio-scanner-admin-system #systemComponent [form]="system" (add)="add()" (remove)="remove(i)">
+    <rdio-scanner-admin-system #systemComponent [form]="system" [groups]="groups" [tags]="tags" (add)="add()" (remove)="remove(i)">
     </rdio-scanner-admin-system>
   </mat-expansion-panel>
 </mat-accordion>

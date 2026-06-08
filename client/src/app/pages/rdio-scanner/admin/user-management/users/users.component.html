@@ -1,0 +1,131 @@
+<mat-card appearance="outlined" class="management-card">
+    <mat-card-header>
+        <mat-card-title>Users</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+        <form [formGroup]="form" (ngSubmit)="save()" class="management-form">
+            <mat-form-field>
+                <mat-label>Username</mat-label>
+                <input matInput formControlName="username" />
+            </mat-form-field>
+
+            <mat-form-field>
+                <mat-label>Email</mat-label>
+                <input matInput formControlName="email" />
+            </mat-form-field>
+
+            <mat-form-field>
+                <mat-label>Password {{ selectedUserId ? '(leave empty to keep current)' : '' }}</mat-label>
+                <input matInput type="password" formControlName="password" />
+            </mat-form-field>
+
+            <mat-form-field>
+                <mat-label>Roles</mat-label>
+                <mat-select formControlName="roles" multiple>
+                    <mat-option *ngFor="let role of roles" [value]="role.id">
+                        {{ role.name }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-checkbox formControlName="isSuspended">Suspended</mat-checkbox>
+
+            <div class="actions">
+                <button mat-flat-button color="primary" type="submit">{{ selectedUserId ? 'Update' : 'Create' }}</button>
+                <button mat-button type="button" (click)="resetForm()">Reset</button>
+            </div>
+        </form>
+
+        <mat-card appearance="outlined" class="access-codes-card" *ngIf="selectedUserId">
+            <mat-card-header>
+                <mat-card-title>Access Codes</mat-card-title>
+            </mat-card-header>
+
+            <mat-card-content>
+                <div class="access-codes-toolbar">
+                    <button mat-flat-button color="primary" type="button" (click)="generateAccessCode()">Generate New Code</button>
+                </div>
+
+                <div class="table-wrap">
+                    <table mat-table [dataSource]="accessCodes" class="management-table">
+                        <ng-container matColumnDef="label">
+                            <th mat-header-cell *matHeaderCellDef>Label</th>
+                            <td mat-cell *matCellDef="let code">{{ code.label || '-' }}</td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="code">
+                            <th mat-header-cell *matHeaderCellDef>Code</th>
+                            <td mat-cell *matCellDef="let code"><span class="mono">{{ code.code }}</span></td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="createdAt">
+                            <th mat-header-cell *matHeaderCellDef>Created</th>
+                            <td mat-cell *matCellDef="let code">{{ formatAccessCodeCreatedAt(code.createdAt) }}</td>
+                        </ng-container>
+
+                        <ng-container matColumnDef="actions">
+                            <th mat-header-cell *matHeaderCellDef>Actions</th>
+                            <td mat-cell *matCellDef="let code">
+                                <button mat-stroked-button color="warn" type="button" (click)="revokeAccessCode(code)">Revoke</button>
+                            </td>
+                        </ng-container>
+
+                        <tr mat-header-row *matHeaderRowDef="accessCodeColumns"></tr>
+                        <tr mat-row *matRowDef="let row; columns: accessCodeColumns"></tr>
+                        <tr class="mat-row" *matNoDataRow>
+                            <td class="mat-cell" [attr.colspan]="accessCodeColumns.length">No active access codes for this user.</td>
+                        </tr>
+                    </table>
+                </div>
+            </mat-card-content>
+        </mat-card>
+
+        <div class="table-wrap">
+            <table mat-table [dataSource]="users" class="management-table">
+                <ng-container matColumnDef="username">
+                    <th mat-header-cell *matHeaderCellDef>Username</th>
+                    <td mat-cell *matCellDef="let user">{{ user.username || '-' }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="email">
+                    <th mat-header-cell *matHeaderCellDef>Email</th>
+                    <td mat-cell *matCellDef="let user">{{ user.email || '-' }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="roles">
+                    <th mat-header-cell *matHeaderCellDef>Roles</th>
+                    <td mat-cell *matCellDef="let user">{{ getRoleNames(user) }}</td>
+                </ng-container>
+
+                <ng-container matColumnDef="status">
+                    <th mat-header-cell *matHeaderCellDef>Status</th>
+                    <td mat-cell *matCellDef="let user">
+                        <span class="status-pill" [class.status-suspended]="user.isSuspended">
+                            {{ getStatusLabel(user) }}
+                        </span>
+                    </td>
+                </ng-container>
+
+                <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef>Actions</th>
+                    <td mat-cell *matCellDef="let user">
+                        <div class="row-actions">
+                            <button mat-stroked-button type="button" (click)="toggleSuspend(user)">
+                                {{ user.isSuspended ? 'Unsuspend' : 'Suspend' }}
+                            </button>
+                            <button mat-stroked-button type="button" (click)="edit(user)">Edit</button>
+                            <button mat-stroked-button color="warn" type="button" (click)="delete(user)">Delete</button>
+                        </div>
+                    </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+                <tr class="mat-row" *matNoDataRow>
+                    <td class="mat-cell" [attr.colspan]="displayedColumns.length">No users found.</td>
+                </tr>
+            </table>
+        </div>
+    </mat-card-content>
+</mat-card>

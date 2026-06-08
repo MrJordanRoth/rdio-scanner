@@ -29,6 +29,10 @@ import { RdioScannerAdminService, Group, Tag } from '../../../admin.service';
 export class RdioScannerAdminTalkgroupComponent {
     @Input() form: FormGroup | undefined;
 
+    @Input() groupsInput: Group[] = [];
+
+    @Input() tagsInput: Tag[] = [];
+
     @Output() blacklist = new EventEmitter<void>();
 
     @Output() remove = new EventEmitter<void>();
@@ -40,16 +44,39 @@ export class RdioScannerAdminTalkgroupComponent {
     }
 
     get groups(): Group[] {
+        if (this.groupsInput.length > 0) {
+            return this.groupsInput;
+        }
+
         return (this.form?.root.get('groups')?.value as Group[]) || [];
     }
 
     get tags(): Tag[] {
+        if (this.tagsInput.length > 0) {
+            return this.tagsInput;
+        }
+
         return (this.form?.root.get('tags')?.value as Tag[]) || [];
     }
 
     constructor(private adminService: RdioScannerAdminService) {
         this.leds = this.adminService.getLeds() || [];
     }
+
+    compareByNumericId = (a: unknown, b: unknown): boolean => {
+        if (a === null || a === undefined || b === null || b === undefined) {
+            return a === b;
+        }
+
+        const left = typeof a === 'number' ? a : Number(a);
+        const right = typeof b === 'number' ? b : Number(b);
+
+        if (Number.isFinite(left) && Number.isFinite(right)) {
+            return left === right;
+        }
+
+        return String(a) === String(b);
+    };
 
     async playAlert(value: string | null): Promise<void> {
         if (value) await this.adminService.playAlert(value);

@@ -1,0 +1,27 @@
+.management-card {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.management-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.row-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.row-actions {
+  display: flex;
+  gap: 4px;
+}

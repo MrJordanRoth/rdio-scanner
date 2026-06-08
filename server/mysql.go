@@ -40,6 +40,82 @@ var MysqlSchema = []string{
     "systems" text NOT NULL DEFAULT ''
   );`,
 
+	`CREATE TABLE IF NOT EXISTS "users" (
+    "userId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "username" varchar(255) NOT NULL UNIQUE,
+    "passwordHash" text NOT NULL,
+  "email" varchar(320) NOT NULL UNIQUE,
+  "isSuspended" boolean NOT NULL DEFAULT false
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roles" (
+    "roleId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "name" varchar(255) NOT NULL UNIQUE,
+  "description" text NOT NULL DEFAULT '',
+  "connectionLimit" integer NOT NULL DEFAULT 0,
+  "delaySeconds" integer NOT NULL DEFAULT 0
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "userRoles" (
+    "userRoleId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "userId" bigint NOT NULL,
+    "roleId" bigint NOT NULL,
+    UNIQUE ("userId", "roleId"),
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleManagers" (
+    "roleManagerId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "roleId" bigint NOT NULL,
+    "userId" bigint NOT NULL,
+    UNIQUE ("roleId", "userId"),
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleSystems" (
+    "roleSystemId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "roleId" bigint NOT NULL,
+    "systemId" bigint NOT NULL,
+    UNIQUE ("roleId", "systemId"),
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("systemId") REFERENCES "systems" ("systemId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleTalkgroups" (
+    "roleTalkgroupId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "roleId" bigint NOT NULL,
+    "talkgroupId" bigint NOT NULL,
+    UNIQUE ("roleId", "talkgroupId"),
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("talkgroupId") REFERENCES "talkgroups" ("talkgroupId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "invites" (
+    "inviteId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "inviteCode" varchar(255) NOT NULL UNIQUE,
+    "isUsed" boolean NOT NULL DEFAULT false,
+  "expirationDate" bigint NOT NULL DEFAULT 0,
+  "roleId" bigint NOT NULL DEFAULT 0
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "mobileTokens" (
+    "tokenString" varchar(255) NOT NULL PRIMARY KEY,
+    "userId" bigint NOT NULL,
+    "createdAt" bigint NOT NULL DEFAULT 0,
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "accessCodes" (
+    "accessCodeId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    "userId" bigint NOT NULL,
+    "code" varchar(255) NOT NULL UNIQUE,
+    "label" text NOT NULL,
+    "createdAt" bigint NOT NULL DEFAULT 0,
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
 	`CREATE TABLE IF NOT EXISTS "downstreams" (
     "downstreamId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
     "apikey" text NOT NULL,
@@ -70,7 +146,6 @@ var MysqlSchema = []string{
     "alert" text NOT NULL DEFAULT '',
     "autoPopulate" boolean NOT NULL DEFAULT false,
     "blacklists" text NOT NULL DEFAULT '',
-    "delay" integer NOT NULL DEFAULT 0,
     "label" text NOT NULL,
     "led" text NOT NULL DEFAULT '',
     "order" integer NOT NULL DEFAULT 0,
@@ -90,7 +165,6 @@ var MysqlSchema = []string{
 	`CREATE TABLE IF NOT EXISTS "talkgroups" (
     "talkgroupId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
     "alert" text NOT NULL DEFAULT '',
-    "delay" integer NOT NULL DEFAULT 0,
     "frequency" integer NOT NULL DEFAULT 0,
     "label" text NOT NULL,
     "led" text NOT NULL DEFAULT '',

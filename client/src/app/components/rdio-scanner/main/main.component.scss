@@ -187,7 +187,41 @@
   align-items: center;
   display: flex;
   flex-direction: row;
-  min-height: 1.5rem;
+  gap: 12px;
+  min-height: 40px;
+
+  .logout-control {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
+  .logout-button {
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    height: 40px;
+    letter-spacing: 0.4px;
+    line-height: 18px;
+    margin: 0;
+    min-width: 92px;
+    padding: 2px 12px;
+    text-transform: uppercase;
+  }
+
+  .profile-button {
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    height: 40px;
+    letter-spacing: 0.4px;
+    line-height: 18px;
+    margin: 0;
+    min-width: 110px;
+    padding: 2px 12px;
+    text-transform: uppercase;
+  }
 
   .branding {
     color: rgb(64, 64, 64);
@@ -207,7 +241,7 @@
     background: rgb(80, 80, 80);
     display: block;
     height: 12px;
-    margin-left: 24px;
+    margin-left: 12px;
     width: 24px;
 
     &.on {

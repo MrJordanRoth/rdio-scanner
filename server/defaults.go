@@ -61,6 +61,10 @@ type DefaultOptions struct {
 	dimmerDelay                 uint
 	disableDuplicateDetection   bool
 	duplicateDetectionTimeFrame uint
+	enablePublicRegistration    bool
+	defaultRoleId               uint64
+	inviteOnly                  bool
+	anonymousListening          bool
 	keypadBeeps                 string
 	maxClients                  uint
 	playbackGoesLive            bool
@@ -105,6 +109,10 @@ var defaults Defaults = Defaults{
 		dimmerDelay:                 5000,
 		disableDuplicateDetection:   false,
 		duplicateDetectionTimeFrame: 500,
+		enablePublicRegistration:    false,
+		defaultRoleId:               0,
+		inviteOnly:                  false,
+		anonymousListening:          false,
 		keypadBeeps:                 "uniden",
 		maxClients:                  200,
 		playbackGoesLive:            false,

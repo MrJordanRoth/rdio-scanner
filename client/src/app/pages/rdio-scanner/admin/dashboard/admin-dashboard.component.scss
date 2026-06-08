@@ -1,0 +1,30 @@
+:host {
+  display: block;
+
+  > div {
+    margin: 16px auto;
+    max-width: 1200px;
+  }
+
+  > h1 {
+    color: #ccc;
+    margin: 0;
+    text-align: center;
+  }
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 719px) {
+  :host > h1 {
+    font-size: 28px;
+    line-height: 32px;
+  }
+
+  .mat-mdc-card {
+    padding: 8px;
+  }
+}

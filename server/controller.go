@@ -29,52 +29,66 @@ import (
 	"os/signal"
 	"strconv"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Controller struct {
-	Accesses    *Accesses
-	Admin       *Admin
-	Api         *Api
-	Apikeys     *Apikeys
-	Calls       *Calls
-	Clients     *Clients
-	Config      *Config
-	Database    *Database
-	Delayer     *Delayer
-	Dirwatches  *Dirwatches
-	Downstreams *Downstreams
-	FFMpeg      *FFMpeg
-	Groups      *Groups
-	Logs        *Logs
-	Options     *Options
-	Scheduler   *Scheduler
-	Systems     *Systems
-	Tags        *Tags
-	Register    chan *Client
-	Unregister  chan *Client
-	Ingest      chan *Call
-	running     bool
+	Accesses     *Accesses
+	AccessCodes  *AccessCodes
+	Admin        *Admin
+	Auth         *Auth
+	Api          *Api
+	Apikeys      *Apikeys
+	Calls        *Calls
+	Clients      *Clients
+	Config       *Config
+	Database     *Database
+	Delayer      *Delayer
+	Dirwatches   *Dirwatches
+	Downstreams  *Downstreams
+	FFMpeg       *FFMpeg
+	Groups       *Groups
+	Invites      *Invites
+	Logs         *Logs
+	MobileTokens *MobileTokens
+	Options      *Options
+	Roles        *Roles
+	Scheduler    *Scheduler
+	Systems      *Systems
+	Tags         *Tags
+	Users        *Users
+	Register     chan *Client
+	Unregister   chan *Client
+	Ingest       chan *Call
+	running      bool
 }
 
 func NewController(config *Config) *Controller {
 	controller := &Controller{
-		Clients:    NewClients(),
-		Config:     config,
-		Accesses:   NewAccesses(),
-		Apikeys:    NewApikeys(),
-		Dirwatches: NewDirwatches(),
-		FFMpeg:     NewFFMpeg(),
-		Groups:     NewGroups(),
-		Logs:       NewLogs(),
-		Options:    NewOptions(),
-		Systems:    NewSystems(),
-		Tags:       NewTags(),
-		Register:   make(chan *Client, 8192),
-		Unregister: make(chan *Client, 8192),
-		Ingest:     make(chan *Call, 8192),
+		Clients:      NewClients(),
+		Config:       config,
+		Accesses:     NewAccesses(),
+		AccessCodes:  NewAccessCodes(),
+		Apikeys:      NewApikeys(),
+		Dirwatches:   NewDirwatches(),
+		FFMpeg:       NewFFMpeg(),
+		Groups:       NewGroups(),
+		Invites:      NewInvites(),
+		Logs:         NewLogs(),
+		MobileTokens: NewMobileTokens(),
+		Options:      NewOptions(),
+		Roles:        NewRoles(),
+		Systems:      NewSystems(),
+		Tags:         NewTags(),
+		Users:        NewUsers(),
+		Register:     make(chan *Client, 8192),
+		Unregister:   make(chan *Client, 8192),
+		Ingest:       make(chan *Call, 8192),
 	}
 
 	controller.Admin = NewAdmin(controller)
+	controller.Auth = NewAuth(controller)
 	controller.Api = NewApi(controller)
 	controller.Calls = NewCalls(controller)
 	controller.Database = NewDatabase(config)
@@ -365,6 +379,14 @@ func (controller *Controller) ProcessMessage(client *Client, message *Message) e
 		}
 
 	} else if message.Command == MessageCommandConfig {
+		if client.UserId > 0 && client.ConnectionLimit > 0 {
+			if uint(controller.Clients.UserCount(client.UserId)) >= client.ConnectionLimit {
+				controller.Logs.LogEvent(LogLevelWarn, fmt.Sprintf("connection limit reached for user %s, limit is %d", client.Username, client.ConnectionLimit))
+				client.Send <- &Message{Command: MessageCommandMax, Payload: "Limit Reached"}
+				return nil
+			}
+		}
+
 		client.SendConfig(controller.Groups, controller.Options, controller.Systems, controller.Tags)
 
 	} else if message.Command == MessageCommandListCall {
@@ -405,6 +427,13 @@ func (controller *Controller) ProcessMessageCommandCall(client *Client, message 
 
 	if call, err = controller.Calls.GetCall(callId); err != nil {
 		return err
+	}
+
+	if client.UserId > 0 {
+		if client.Access != nil && client.Access.HasAccess(call) {
+			client.Send <- &Message{Command: MessageCommandCall, Payload: call, Flag: message.Flag}
+		}
+		return nil
 	}
 
 	if !controller.Accesses.IsRestricted() || client.Access.HasAccess(call) {
@@ -453,6 +482,15 @@ func (controller *Controller) ProcessMessageCommandPin(client *Client, message *
 			if access, ok := controller.Accesses.GetAccess(code); ok {
 				client.Access = access
 
+			} else if userAccess, userId, username, connectionLimit, ok, err := controller.resolveAccessCodeLogin(code); err != nil {
+				return err
+
+			} else if ok {
+				client.Access = userAccess
+				client.UserId = userId
+				client.Username = username
+				client.ConnectionLimit = connectionLimit
+
 			} else {
 				controller.Logs.LogEvent(LogLevelWarn, fmt.Sprintf("invalid access code %s for ip %s", code, client.GetRemoteAddr()))
 				client.Send <- &Message{Command: MessageCommandPin}
@@ -489,6 +527,57 @@ func (controller *Controller) ProcessMessageCommandPin(client *Client, message *
 	}
 
 	return nil
+}
+
+func (controller *Controller) resolveAccessCodeLogin(code string) (*Access, uint64, string, uint, bool, error) {
+	if err := controller.AccessCodes.Read(controller.Database); err != nil {
+		return nil, 0, "", 0, false, err
+	}
+
+	accessCode, found := controller.AccessCodes.GetByCode(code)
+	if !found {
+		if err := controller.MobileTokens.Read(controller.Database); err != nil {
+			return nil, 0, "", 0, false, err
+		}
+
+		if mobileToken, ok := controller.MobileTokens.GetMobileToken(code); ok {
+			accessCode = &AccessCode{
+				UserId:    mobileToken.UserId,
+				Code:      mobileToken.TokenString,
+				Label:     "Legacy Mobile App",
+				CreatedAt: mobileToken.CreatedAt,
+			}
+			found = true
+		}
+	}
+
+	if !found {
+		return nil, 0, "", 0, false, nil
+	}
+
+	if err := controller.Users.Read(controller.Database); err != nil {
+		return nil, 0, "", 0, false, err
+	}
+
+	user, found := controller.Users.GetUserById(accessCode.UserId)
+	if !found || user.IsSuspended {
+		return nil, 0, "", 0, false, nil
+	}
+
+	if err := controller.Roles.Read(controller.Database); err != nil {
+		return nil, 0, "", 0, false, err
+	}
+
+	if err := controller.Systems.Read(controller.Database); err != nil {
+		return nil, 0, "", 0, false, err
+	}
+
+	access, connectionLimit := controller.Roles.BuildAccessFromUserRoles(user, controller.Systems)
+	if access == nil {
+		access = NewAccess()
+	}
+
+	return access, user.Id, user.Username, connectionLimit, true, nil
 }
 
 func (controller *Controller) ProcessMessageCommandVersion(client *Client) {
@@ -536,6 +625,24 @@ func (controller *Controller) Start() error {
 		return err
 	}
 	if err = controller.Options.Read(controller.Database); err != nil {
+		return err
+	}
+	if err = controller.Roles.Read(controller.Database); err != nil {
+		return err
+	}
+	if err = controller.Users.Read(controller.Database); err != nil {
+		return err
+	}
+	if err = controller.bootstrapDefaultAdminUser(); err != nil {
+		return err
+	}
+	if err = controller.Invites.Read(controller.Database); err != nil {
+		return err
+	}
+	if err = controller.MobileTokens.Read(controller.Database); err != nil {
+		return err
+	}
+	if err = controller.AccessCodes.Read(controller.Database); err != nil {
 		return err
 	}
 	if err = controller.Systems.Read(controller.Database); err != nil {
@@ -600,6 +707,56 @@ func (controller *Controller) Start() error {
 	}()
 
 	controller.Dirwatches.Start(controller)
+
+	return nil
+}
+
+func (controller *Controller) bootstrapDefaultAdminUser() error {
+	if len(controller.Users.List) > 0 {
+		return nil
+	}
+
+	controller.Roles.Add(&Role{
+		Name:        "Admin",
+		Description: "Default administrator role",
+	})
+
+	if err := controller.Roles.Write(controller.Database); err != nil {
+		return err
+	}
+
+	if err := controller.Roles.Read(controller.Database); err != nil {
+		return err
+	}
+
+	adminRole, ok := controller.Roles.GetRoleByName("Admin")
+	if !ok {
+		return errors.New("unable to bootstrap admin role")
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("admin"), authBcryptCost)
+	if err != nil {
+		return err
+	}
+
+	controller.Users.Add(&User{
+		Username:     "admin",
+		PasswordHash: string(passwordHash),
+		Email:        "admin@localhost",
+		Groups:       []uint64{adminRole.Id},
+	})
+
+	if err := controller.Users.Write(controller.Database); err != nil {
+		return err
+	}
+
+	if err := controller.Users.Read(controller.Database); err != nil {
+		return err
+	}
+
+	warning := "DEFAULT ADMIN ACCOUNT CREATED. Username: admin | Password: admin. PLEASE CHANGE THIS PASSWORD IMMEDIATELY."
+	log.Printf("\n\n%s\n\n", warning)
+	controller.Logs.LogEvent(LogLevelWarn, warning)
 
 	return nil
 }

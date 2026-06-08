@@ -40,6 +40,82 @@ var SqliteSchema = []string{
     "systems" text NOT NULL DEFAULT ''
   );`,
 
+	`CREATE TABLE IF NOT EXISTS "users" (
+    "userId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "username" text NOT NULL UNIQUE,
+    "passwordHash" text NOT NULL,
+  "email" text NOT NULL UNIQUE,
+  "isSuspended" integer(1) NOT NULL DEFAULT 0
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roles" (
+    "roleId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" text NOT NULL UNIQUE,
+  "description" text NOT NULL DEFAULT '',
+  "connectionLimit" integer NOT NULL DEFAULT 0,
+  "delaySeconds" integer NOT NULL DEFAULT 0
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "userRoles" (
+    "userRoleId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "userId" integer NOT NULL,
+    "roleId" integer NOT NULL,
+    UNIQUE ("userId", "roleId"),
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleManagers" (
+    "roleManagerId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "roleId" integer NOT NULL,
+    "userId" integer NOT NULL,
+    UNIQUE ("roleId", "userId"),
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleSystems" (
+    "roleSystemId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "roleId" integer NOT NULL,
+    "systemId" integer NOT NULL,
+    UNIQUE ("roleId", "systemId"),
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("systemId") REFERENCES "systems" ("systemId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "roleTalkgroups" (
+    "roleTalkgroupId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "roleId" integer NOT NULL,
+    "talkgroupId" integer NOT NULL,
+    UNIQUE ("roleId", "talkgroupId"),
+    FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY ("talkgroupId") REFERENCES "talkgroups" ("talkgroupId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "invites" (
+    "inviteId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "inviteCode" text NOT NULL UNIQUE,
+    "isUsed" integer(1) NOT NULL DEFAULT 0,
+  "expirationDate" integer NOT NULL DEFAULT 0,
+  "roleId" integer NOT NULL DEFAULT 0
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "mobileTokens" (
+    "tokenString" text NOT NULL PRIMARY KEY,
+    "userId" integer NOT NULL,
+    "createdAt" integer NOT NULL DEFAULT 0,
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
+	`CREATE TABLE IF NOT EXISTS "accessCodes" (
+    "accessCodeId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "userId" integer NOT NULL,
+    "code" text NOT NULL UNIQUE,
+    "label" text NOT NULL DEFAULT '',
+    "createdAt" integer NOT NULL DEFAULT 0,
+    FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE
+  );`,
+
 	`CREATE TABLE IF NOT EXISTS "downstreams" (
     "downstreamId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
     "apikey" text NOT NULL,
@@ -70,7 +146,6 @@ var SqliteSchema = []string{
     "alert" text NOT NULL DEFAULT '',
     "autoPopulate" integer(1) NOT NULL DEFAULT 0,
     "blacklists" text NOT NULL DEFAULT '',
-    "delay" integer NOT NULL DEFAULT 0,
     "label" text NOT NULL,
     "led" text NOT NULL DEFAULT '',
     "order" integer NOT NULL DEFAULT 0,
@@ -90,7 +165,6 @@ var SqliteSchema = []string{
 	`CREATE TABLE IF NOT EXISTS "talkgroups" (
     "talkgroupId" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
     "alert" text NOT NULL DEFAULT '',
-    "delay" integer NOT NULL DEFAULT 0,
     "frequency" integer NOT NULL DEFAULT 0,
     "label" text NOT NULL,
     "led" text NOT NULL DEFAULT '',

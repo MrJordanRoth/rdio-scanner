@@ -70,7 +70,6 @@ export interface Apikey {
 }
 
 export interface Config {
-    access?: Access[];
     apikeys?: Apikey[];
     dirwatch?: Dirwatch[];
     downstreams?: Downstream[];
@@ -146,9 +145,12 @@ export interface LogsQueryOptions {
 
 export interface Options {
     audioConversion?: 0 | 1 | 2 | 3;
+    anonymousListening?: boolean;
     autoPopulate?: boolean;
     branding?: string;
+    defaultRoleId?: number;
     dimmerDelay?: number;
+    enablePublicRegistration?: boolean;
     disableDuplicateDetection?: boolean;
     duplicateDetectionTimeFrame?: number;
     email?: string;
@@ -173,7 +175,7 @@ export interface System {
     alert?: string;
     autoPopulate?: boolean;
     blacklists?: string;
-    delay?: number;
+    delaySeconds?: number;
     label?: string;
     led?: string | null;
     order?: number | null;
@@ -195,14 +197,15 @@ export interface Tag {
 export interface Talkgroup {
     id?: number | null;
     alert?: string;
-    delay?: number;
+    delaySeconds?: number;
     frequency?: number | null;
     groupIds?: number[];
     label?: string;
     led?: string | null;
     name?: string;
     order?: number;
-    tagId?: number;
+    tagId?: number | number[];
+    tagIds?: number[];
     talkgroupRef?: number;
     type?: string;
 }
@@ -226,6 +229,9 @@ enum url {
 }
 
 const SESSION_STORAGE_KEY = 'rdio-scanner-admin-token';
+const ADMIN_TOKEN_LOCAL_KEY = 'rdio-scanner-admin-token';
+const DELAY_MINUTES_MIN = 1;
+const DELAY_MINUTES_MAX = 10;
 
 declare global {
     interface Window {
@@ -260,11 +266,15 @@ export class RdioScannerAdminService implements OnDestroy {
     private _passwordNeedChange = false;
 
     private get token(): string {
-        return window?.sessionStorage?.getItem(SESSION_STORAGE_KEY) || '';
+        return window?.localStorage?.getItem(ADMIN_TOKEN_LOCAL_KEY) || '';
     }
 
     private set token(token: string) {
-        window?.sessionStorage?.setItem(SESSION_STORAGE_KEY, token);
+        if (token) {
+            window?.localStorage?.setItem(ADMIN_TOKEN_LOCAL_KEY, token);
+        } else {
+            window?.localStorage?.removeItem(ADMIN_TOKEN_LOCAL_KEY);
+        }
     }
 
     constructor(
@@ -287,7 +297,7 @@ export class RdioScannerAdminService implements OnDestroy {
             const res = await firstValueFrom(this.ngHttpClient.post<{ passwordNeedChange: boolean }>(
                 this.getUrl(url.password),
                 { currentPassword, newPassword },
-                { headers: this.getHeaders(), responseType: 'json' },
+                { headers: this.getHeaders(), withCredentials: true, responseType: 'json' },
             ));
 
             this._passwordNeedChange = res.passwordNeedChange;
@@ -310,7 +320,7 @@ export class RdioScannerAdminService implements OnDestroy {
                 passwordNeedChange: boolean;
             }>(
                 this.getUrl(url.config),
-                { headers: this.getHeaders(), responseType: 'json' },
+                { headers: this.getHeaders(), withCredentials: true, responseType: 'json' },
             ));
 
             if (res.docker !== this._docker) {
@@ -343,7 +353,7 @@ export class RdioScannerAdminService implements OnDestroy {
             const res = await firstValueFrom(this.ngHttpClient.post<LogsQuery>(
                 this.getUrl(url.logs),
                 options,
-                { headers: this.getHeaders(), responseType: 'json' },
+                { headers: this.getHeaders(), withCredentials: true, responseType: 'json' },
             ));
 
             return res;
@@ -359,7 +369,7 @@ export class RdioScannerAdminService implements OnDestroy {
         try {
             this.Alerts = await firstValueFrom(this.ngHttpClient.get<Alerts>(
                 this.getUrl(url.alerts),
-                { headers: this.getHeaders(), responseType: 'json' },
+                { headers: this.getHeaders(), withCredentials: true, responseType: 'json' },
             ));
 
 
@@ -376,7 +386,7 @@ export class RdioScannerAdminService implements OnDestroy {
             }>(
                 this.getUrl(url.login),
                 { password },
-                { headers: this.getHeaders(), responseType: 'json' },
+                { headers: this.getHeaders(), withCredentials: true, responseType: 'json' },
             ));
 
             this.token = res.token;
@@ -404,7 +414,7 @@ export class RdioScannerAdminService implements OnDestroy {
             this.ngHttpClient.post(
                 this.getUrl(url.logout),
                 null,
-                { headers: this.getHeaders(), responseType: 'text' },
+                { headers: this.getHeaders(), withCredentials: true, responseType: 'text' },
             );
 
             this.configWebSocketClose();
@@ -465,10 +475,25 @@ export class RdioScannerAdminService implements OnDestroy {
 
     async saveConfig(config: Config): Promise<Config> {
         try {
+            const configPayload: Config = {
+                ...config,
+                systems: config.systems?.map((system) => ({
+                    ...system,
+                    delaySeconds: this.delayMinutesToSeconds(system.delaySeconds),
+                    talkgroups: system.talkgroups?.map((talkgroup) => ({
+                        ...talkgroup,
+                        groupIds: this.normalizeIdArray(talkgroup.groupIds),
+                        tagIds: this.normalizeIdArray((talkgroup as Talkgroup).tagIds ?? talkgroup.tagId),
+                        tagId: this.normalizeIdArray((talkgroup as Talkgroup).tagIds ?? talkgroup.tagId)[0] || 0,
+                        delaySeconds: this.delayMinutesToSeconds(talkgroup.delaySeconds),
+                    })),
+                })),
+            };
+
             const res = await firstValueFrom(this.ngHttpClient.put<{ config: Config }>(
                 this.getUrl(url.config),
-                config,
-                { headers: this.getHeaders(), responseType: 'json' },
+                configPayload,
+                { headers: this.getHeaders(), withCredentials: true, responseType: 'json' },
             ));
 
             return res.config;
@@ -476,20 +501,8 @@ export class RdioScannerAdminService implements OnDestroy {
         } catch (error) {
             this.errorHandler(error);
 
-            return config;
+            throw error;
         }
-    }
-
-    newAccessForm(access?: Access): FormGroup {
-        return this.ngFormBuilder.group({
-            id: this.ngFormBuilder.nonNullable.control(access?.id),
-            code: this.ngFormBuilder.nonNullable.control(access?.code, [Validators.required, this.validateAccessCode()]),
-            expiration: this.ngFormBuilder.nonNullable.control(access?.expiration),
-            ident: this.ngFormBuilder.nonNullable.control(access?.ident, Validators.required),
-            limit: this.ngFormBuilder.nonNullable.control(access?.limit),
-            order: this.ngFormBuilder.nonNullable.control(access?.order),
-            systems: this.ngFormBuilder.nonNullable.control(access?.systems),
-        });
     }
 
     newApikeyForm(apikey?: Apikey): FormGroup {
@@ -505,7 +518,6 @@ export class RdioScannerAdminService implements OnDestroy {
 
     newConfigForm(config?: Config): FormGroup {
         return this.ngFormBuilder.group({
-            access: this.ngFormBuilder.array(config?.access?.map((access) => this.newAccessForm(access)) || []),
             apikeys: this.ngFormBuilder.array(config?.apikeys?.map((apikey) => this.newApikeyForm(apikey)) || []),
             dirwatch: this.ngFormBuilder.array(config?.dirwatch?.map((dirwatch) => this.newDirwatchForm(dirwatch)) || []),
             downstreams: this.ngFormBuilder.array(config?.downstreams?.map((downstream) => this.newDownstreamForm(downstream)) || []),
@@ -558,20 +570,23 @@ export class RdioScannerAdminService implements OnDestroy {
 
     newOptionsForm(options?: Options): FormGroup {
         return this.ngFormBuilder.group({
-            audioConversion: this.ngFormBuilder.control(options?.audioConversion),
-            autoPopulate: this.ngFormBuilder.control(options?.autoPopulate),
-            branding: this.ngFormBuilder.control(options?.branding),
-            dimmerDelay: this.ngFormBuilder.control(options?.dimmerDelay, [Validators.required, Validators.min(0)]),
-            disableDuplicateDetection: this.ngFormBuilder.control(options?.disableDuplicateDetection),
-            duplicateDetectionTimeFrame: this.ngFormBuilder.control(options?.duplicateDetectionTimeFrame, [Validators.required, Validators.min(0)]),
-            email: this.ngFormBuilder.control(options?.email),
-            keypadBeeps: this.ngFormBuilder.control(options?.keypadBeeps, Validators.required),
-            maxClients: this.ngFormBuilder.control(options?.maxClients, [Validators.required, Validators.min(1)]),
-            playbackGoesLive: this.ngFormBuilder.control(options?.playbackGoesLive),
-            pruneDays: this.ngFormBuilder.control(options?.pruneDays, [Validators.required, Validators.min(0)]),
-            showListenersCount: this.ngFormBuilder.control(options?.showListenersCount),
-            sortTalkgroups: this.ngFormBuilder.control(options?.sortTalkgroups),
-            time12hFormat: this.ngFormBuilder.control(options?.time12hFormat),
+            audioConversion: this.ngFormBuilder.control(options?.audioConversion ?? 0),
+            anonymousListening: this.ngFormBuilder.control(options?.anonymousListening ?? false),
+            autoPopulate: this.ngFormBuilder.control(options?.autoPopulate ?? false),
+            branding: this.ngFormBuilder.control(options?.branding ?? ''),
+            defaultRoleId: this.ngFormBuilder.control(options?.defaultRoleId ?? 0),
+            dimmerDelay: this.ngFormBuilder.control(options?.dimmerDelay ?? 0, [Validators.required, Validators.min(0)]),
+            enablePublicRegistration: this.ngFormBuilder.control(options?.enablePublicRegistration ?? false),
+            disableDuplicateDetection: this.ngFormBuilder.control(options?.disableDuplicateDetection ?? false),
+            duplicateDetectionTimeFrame: this.ngFormBuilder.control(options?.duplicateDetectionTimeFrame ?? 0, [Validators.required, Validators.min(0)]),
+            email: this.ngFormBuilder.control(options?.email ?? ''),
+            keypadBeeps: this.ngFormBuilder.control(options?.keypadBeeps ?? 'uniden', Validators.required),
+            maxClients: this.ngFormBuilder.control(options?.maxClients ?? 1, [Validators.required, Validators.min(1)]),
+            playbackGoesLive: this.ngFormBuilder.control(options?.playbackGoesLive ?? false),
+            pruneDays: this.ngFormBuilder.control(options?.pruneDays ?? 0, [Validators.required, Validators.min(0)]),
+            showListenersCount: this.ngFormBuilder.control(options?.showListenersCount ?? false),
+            sortTalkgroups: this.ngFormBuilder.control(options?.sortTalkgroups ?? false),
+            time12hFormat: this.ngFormBuilder.control(options?.time12hFormat ?? false),
         });
     }
 
@@ -590,7 +605,7 @@ export class RdioScannerAdminService implements OnDestroy {
             alert: this.ngFormBuilder.control(system?.alert),
             autoPopulate: this.ngFormBuilder.control(system?.autoPopulate),
             blacklists: this.ngFormBuilder.control(system?.blacklists, this.validateBlacklists()),
-            delay: this.ngFormBuilder.control(system?.delay),
+            delaySeconds: this.ngFormBuilder.control(this.delaySecondsToMinutes(system?.delaySeconds), [Validators.required, this.validateDelayMinutes()]),
             label: this.ngFormBuilder.control(system?.label, Validators.required),
             led: this.ngFormBuilder.control(system?.led || ''),
             order: this.ngFormBuilder.control(system?.order),
@@ -616,14 +631,14 @@ export class RdioScannerAdminService implements OnDestroy {
         return this.ngFormBuilder.group({
             id: this.ngFormBuilder.control(talkgroup?.id),
             alert: this.ngFormBuilder.control(talkgroup?.alert),
-            delay: this.ngFormBuilder.control(talkgroup?.delay),
+            delaySeconds: this.ngFormBuilder.control(this.delaySecondsToMinutes(talkgroup?.delaySeconds), [Validators.required, this.validateDelayMinutes()]),
             frequency: this.ngFormBuilder.control(talkgroup?.frequency, Validators.min(0)),
-            groupIds: this.ngFormBuilder.control(talkgroup?.groupIds, [Validators.required, this.validateGroup()]),
+            groupIds: this.ngFormBuilder.control(this.normalizeIdArray(talkgroup?.groupIds), Validators.required),
             label: this.ngFormBuilder.control(talkgroup?.label, Validators.required),
             led: this.ngFormBuilder.control(talkgroup?.led || ''),
             name: this.ngFormBuilder.control(talkgroup?.name, Validators.required),
             order: this.ngFormBuilder.control(talkgroup?.order),
-            tagId: this.ngFormBuilder.control(talkgroup?.tagId, [Validators.required, this.validateTag()]),
+            tagId: this.ngFormBuilder.control(this.normalizeIdArray(talkgroup?.tagIds ?? talkgroup?.tagId), Validators.required),
             talkgroupRef: this.ngFormBuilder.control(talkgroup?.talkgroupRef, [Validators.required, Validators.min(1), this.validateTalkgroupRef()]),
             type: this.ngFormBuilder.control(talkgroup?.type || ''),
         });
@@ -712,21 +727,53 @@ export class RdioScannerAdminService implements OnDestroy {
     }
 
     private getUrl(path: string): string {
-        return `${window.location.href}/../api/admin${path.charAt(0) === '/' ? path : `/${path}`}`;
+        return `/api/admin${path.charAt(0) === '/' ? path : `/${path}`}`;
     }
 
-    private validateAccessCode(): ValidatorFn {
-        return (control: AbstractControl): ValidationErrors | null => {
-            if (typeof control.value !== 'string' || !control.value.length) {
-                return null;
-            }
+    private delayMinutesToSeconds(minutes: number | undefined): number {
+        if (typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes <= 0) {
+            return 0;
+        }
 
-            const access: Access[] = control.parent?.parent?.getRawValue() || [];
+        if (minutes < DELAY_MINUTES_MIN || minutes > DELAY_MINUTES_MAX) {
+            return 0;
+        }
 
-            const count = access.reduce((c, a) => c += a.code === control.value ? 1 : 0, 0);
+        return Math.round(minutes * 60);
+    }
 
-            return count > 1 ? { duplicate: true } : null;
-        };
+    private delaySecondsToMinutes(seconds: number | undefined): number {
+        if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) {
+            return 0;
+        }
+
+        if (seconds < DELAY_MINUTES_MIN * 60 || seconds > DELAY_MINUTES_MAX * 60) {
+            return 0;
+        }
+
+        return Math.round(seconds / 60);
+    }
+
+    private normalizeId(value: unknown): number | null {
+        const normalized = (typeof value === 'object' && value !== null)
+            ? ((value as { id?: unknown; value?: unknown }).id ?? (value as { id?: unknown; value?: unknown }).value)
+            : value;
+
+        const id = typeof normalized === 'number' ? normalized : Number(normalized);
+
+        return Number.isFinite(id) && id > 0 ? id : null;
+    }
+
+    private normalizeIdArray(values: unknown): number[] {
+        const valueList = Array.isArray(values)
+            ? values
+            : values === null || values === undefined || values === ''
+                ? []
+                : [values];
+
+        return valueList
+            .map((value) => this.normalizeId(value))
+            .filter((value): value is number => typeof value === 'number');
     }
 
     private validateApikey(): ValidatorFn {
@@ -764,6 +811,30 @@ export class RdioScannerAdminService implements OnDestroy {
             const count = dirwatch.reduce((c, a) => c += a.directory === control.value ? 1 : 0, 0);
 
             return count > 1 ? { duplicate: true } : null;
+        };
+    }
+
+    private validateDelayMinutes(): ValidatorFn {
+        return (control: AbstractControl): ValidationErrors | null => {
+            const value = control.value;
+
+            if (value === null || value === undefined || value === '') {
+                return { required: true };
+            }
+
+            if (typeof value !== 'number' || !Number.isFinite(value)) {
+                return { invalid: true };
+            }
+
+            if (!Number.isInteger(value) || value < 0) {
+                return { invalid: true };
+            }
+
+            if (value === 0) {
+                return null;
+            }
+
+            return value >= DELAY_MINUTES_MIN && value <= DELAY_MINUTES_MAX ? null : { range: true };
         };
     }
 
@@ -817,13 +888,26 @@ export class RdioScannerAdminService implements OnDestroy {
 
     private validateGroup(): ValidatorFn {
         return (control: AbstractControl): ValidationErrors | null => {
-            if (typeof control.value !== 'number') {
+            const selectedGroupIds = Array.isArray(control.value)
+                ? control.value
+                : typeof control.value === 'number'
+                    ? [control.value]
+                    : [];
+
+            if (selectedGroupIds.length === 0) {
                 return null;
             }
 
-            const groupIds = control.root.get('groups')?.value.map((group: Group) => group.id);
+            const groups = control.root.get('groups')?.value;
+            if (!Array.isArray(groups)) {
+                return null;
+            }
 
-            return groupIds ? groupIds.includes(control.value) ? null : { required: true } : null;
+            const groupIds = groups
+                .map((group: Group) => group?.id)
+                .filter((id: unknown): id is number => typeof id === 'number' && Number.isFinite(id));
+
+            return selectedGroupIds.every((id) => groupIds.includes(id)) ? null : { required: true };
         };
     }
 
@@ -879,13 +963,26 @@ export class RdioScannerAdminService implements OnDestroy {
 
     private validateTag(): ValidatorFn {
         return (control: AbstractControl): ValidationErrors | null => {
-            if (typeof control.value !== 'number') {
+            const selectedTagIds = Array.isArray(control.value)
+                ? control.value
+                : typeof control.value === 'number'
+                    ? [control.value]
+                    : [];
+
+            if (selectedTagIds.length === 0) {
                 return null;
             }
 
-            const tagIds = control.root.get('tags')?.value.map((tag: Tag) => tag.id);
+            const tags = control.root.get('tags')?.value;
+            if (!Array.isArray(tags)) {
+                return null;
+            }
 
-            return tagIds ? tagIds.includes(control.value) ? null : { required: true } : null;
+            const tagIds = tags
+                .map((tag: Tag) => tag?.id)
+                .filter((id: unknown): id is number => typeof id === 'number' && Number.isFinite(id));
+
+            return selectedTagIds.every((id) => tagIds.includes(id)) ? null : { required: true };
         };
     }
 

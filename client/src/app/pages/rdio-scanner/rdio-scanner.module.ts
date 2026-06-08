@@ -20,12 +20,18 @@
 import { NgModule } from '@angular/core';
 import { RdioScannerModule } from '../../components/rdio-scanner';
 import { AppSharedModule } from '../../shared/shared.module';
+import { AuthLoginPageComponent } from './auth/login.component';
+import { AuthProfilePageComponent } from './auth/profile.component';
+import { AuthRegisterPageComponent } from './auth/register.component';
 import { RdioScannerPageComponent } from './rdio-scanner.component';
 import { RdioScannerMainPageComponent } from './rdio-scanner-main.component';
 import { routes } from './rdio-scanner.routes';
 
 @NgModule({
     declarations: [
+        AuthLoginPageComponent,
+        AuthProfilePageComponent,
+        AuthRegisterPageComponent,
         RdioScannerPageComponent,
         RdioScannerMainPageComponent,
     ],

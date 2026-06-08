@@ -20,11 +20,29 @@
 import { NgModule } from '@angular/core';
 import { RdioScannerAdminModule } from '../../../components/rdio-scanner/admin';
 import { AppSharedModule } from '../../../shared/shared.module';
+import { RdioScannerAdminActiveSessionsPageComponent } from './active-sessions/active-sessions.component';
 import { RdioScannerAdminPageComponent } from './admin.component';
 import { routes } from './admin.routes';
+import { RdioScannerAdminDashboardPageComponent } from './dashboard/admin-dashboard.component';
+import { RdioScannerAdminConfigPageComponent } from './system/config/admin-config-page.component';
+import { RdioScannerAdminLogsPageComponent } from './system/logs/admin-logs-page.component';
+import { RdioScannerAdminToolsPageComponent } from './system/tools/admin-tools-page.component';
+import { RdioScannerAdminInvitesPageComponent } from './user-management/invites/invites.component';
+import { RdioScannerAdminRolesPageComponent } from './user-management/roles/roles.component';
+import { RdioScannerAdminUsersPageComponent } from './user-management/users/users.component';
 
 @NgModule({
-    declarations: [RdioScannerAdminPageComponent],
+    declarations: [
+        RdioScannerAdminActiveSessionsPageComponent,
+        RdioScannerAdminConfigPageComponent,
+        RdioScannerAdminDashboardPageComponent,
+        RdioScannerAdminInvitesPageComponent,
+        RdioScannerAdminLogsPageComponent,
+        RdioScannerAdminPageComponent,
+        RdioScannerAdminRolesPageComponent,
+        RdioScannerAdminToolsPageComponent,
+        RdioScannerAdminUsersPageComponent,
+    ],
     exports: [RdioScannerAdminPageComponent],
     imports: [
         RdioScannerAdminModule,

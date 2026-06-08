@@ -17,8 +17,10 @@
  * ****************************************************************************
  */
 
-import { Component, OnDestroy, ViewEncapsulation } from '@angular/core';
-import { AdminEvent, RdioScannerAdminService, Group, Tag } from './admin.service';
+import { Component, ViewEncapsulation } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../shared/auth/auth.service';
+import { Group, Tag } from './admin.service';
 
 @Component({
     encapsulation: ViewEncapsulation.None,
@@ -27,28 +29,18 @@ import { AdminEvent, RdioScannerAdminService, Group, Tag } from './admin.service
     templateUrl: './admin.component.html',
     standalone: false
 })
-export class RdioScannerAdminComponent implements OnDestroy {
-    authenticated = true;
-
+export class RdioScannerAdminComponent {
     groups: Group[] = [];
 
     tags: Tag[] = [];
 
-    private eventSubscription;
-
-    constructor(private adminService: RdioScannerAdminService) {
-        this.eventSubscription = this.adminService.event.subscribe(async (event: AdminEvent) => {
-            if ('authenticated' in event) {
-                this.authenticated = event.authenticated || false;
-            }
-        });
-    }
-
-    ngOnDestroy(): void {
-        this.eventSubscription.unsubscribe();
-    }
+    constructor(
+        private authService: AuthService,
+        private router: Router,
+    ) {}
 
     async logout(): Promise<void> {
-        await this.adminService.logout();
+        this.authService.logoutLocal();
+        await this.router.navigateByUrl('/login');
     }
 }

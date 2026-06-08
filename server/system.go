@@ -35,7 +35,6 @@ type System struct {
 	Alert        string
 	AutoPopulate bool
 	Blacklists   Blacklists
-	Delay        uint
 	Kind         string
 	Label        string
 	Led          string
@@ -73,11 +72,6 @@ func (system *System) FromMap(m map[string]any) *System {
 	switch v := m["blacklists"].(type) {
 	case string:
 		system.Blacklists = Blacklists(v)
-	}
-
-	switch v := m["delay"].(type) {
-	case float64:
-		system.Delay = uint(v)
 	}
 
 	switch v := m["type"].(type) {
@@ -142,10 +136,6 @@ func (system *System) MarshalJSON() ([]byte, error) {
 
 	if len(system.Blacklists) > 0 {
 		m["blacklists"] = system.Blacklists
-	}
-
-	if system.Delay > 0 {
-		m["delay"] = system.Delay
 	}
 
 	if len(system.Kind) > 0 {
@@ -248,6 +238,21 @@ func (systems *Systems) GetSystemByRef(ref uint) (system *System, ok bool) {
 	}
 
 	return nil, false
+}
+
+func (systems *Systems) GetRefsByTalkgroupId(talkgroupId uint64) (systemRef uint, talkgroupRef uint, ok bool) {
+	systems.mutex.Lock()
+	defer systems.mutex.Unlock()
+
+	for _, system := range systems.List {
+		for _, talkgroup := range system.Talkgroups.List {
+			if talkgroup.Id == talkgroupId {
+				return system.SystemRef, talkgroup.TalkgroupRef, true
+			}
+		}
+	}
+
+	return 0, 0, false
 }
 
 func (systems *Systems) GetScopedSystems(client *Client, groups *Groups, tags *Tags, sortTalkgroups bool) SystemsMap {
@@ -430,7 +435,7 @@ func (systems *Systems) Read(db *Database) error {
 		return formatError(err, "")
 	}
 
-	query = `SELECT "systemId", "alert", "autoPopulate", "blacklists", "delay", "label", "led", "order", "systemRef", "type" FROM "systems"`
+	query = `SELECT "systemId", "alert", "autoPopulate", "blacklists", "label", "led", "order", "systemRef", "type" FROM "systems"`
 	if rows, err = tx.Query(query); err != nil {
 		tx.Rollback()
 		return formatError(err, query)
@@ -439,7 +444,7 @@ func (systems *Systems) Read(db *Database) error {
 	for rows.Next() {
 		system := NewSystem()
 
-		if err = rows.Scan(&system.Id, &system.Alert, &system.AutoPopulate, &system.Blacklists, &system.Delay, &system.Label, &system.Led, &system.Order, &system.SystemRef, &system.Kind); err != nil {
+		if err = rows.Scan(&system.Id, &system.Alert, &system.AutoPopulate, &system.Blacklists, &system.Label, &system.Led, &system.Order, &system.SystemRef, &system.Kind); err != nil {
 			break
 		}
 
@@ -576,7 +581,7 @@ func (systems *Systems) Write(db *Database) error {
 		}
 
 		if count == 0 {
-			query = fmt.Sprintf(`INSERT INTO "systems" ("alert", "autoPopulate", "blacklists", "delay", "label", "led", "order", "systemRef", "type") VALUES ('%s', %t, '%s', %d, '%s', '%s', %d, %d, '%s')`, system.Alert, system.AutoPopulate, system.Blacklists, system.Delay, escapeQuotes(system.Label), system.Led, system.Order, system.SystemRef, system.Kind)
+			query = fmt.Sprintf(`INSERT INTO "systems" ("alert", "autoPopulate", "blacklists", "label", "led", "order", "systemRef", "type") VALUES ('%s', %t, '%s', '%s', '%s', %d, %d, '%s')`, escapeQuotes(system.Alert), system.AutoPopulate, escapeQuotes(string(system.Blacklists)), escapeQuotes(system.Label), escapeQuotes(system.Led), system.Order, system.SystemRef, escapeQuotes(system.Kind))
 
 			if db.Config.DbType == DbTypePostgresql {
 				query = query + ` RETURNING "systemId"`
@@ -596,7 +601,7 @@ func (systems *Systems) Write(db *Database) error {
 			}
 
 		} else {
-			query = fmt.Sprintf(`UPDATE "systems" SET "alert" = '%s', "autoPopulate" = %t, "blacklists" = '%s', "delay" = %d, "label" = '%s', "led" = '%s', "order" = %d, "systemRef" = %d, "type" = '%s' WHERE "systemId" = %d`, system.Alert, system.AutoPopulate, system.Blacklists, system.Delay, escapeQuotes(system.Label), system.Led, system.Order, system.SystemRef, system.Kind, system.Id)
+			query = fmt.Sprintf(`UPDATE "systems" SET "alert" = '%s', "autoPopulate" = %t, "blacklists" = '%s', "label" = '%s', "led" = '%s', "order" = %d, "systemRef" = %d, "type" = '%s' WHERE "systemId" = %d`, escapeQuotes(system.Alert), system.AutoPopulate, escapeQuotes(string(system.Blacklists)), escapeQuotes(system.Label), escapeQuotes(system.Led), system.Order, system.SystemRef, escapeQuotes(system.Kind), system.Id)
 			if _, err = tx.Exec(query); err != nil {
 				break
 			}

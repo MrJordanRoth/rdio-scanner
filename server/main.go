@@ -112,21 +112,54 @@ func main() {
 		sslAddr = defaultAddr
 	}
 
-	http.HandleFunc("/api/admin/alerts", controller.Admin.AlertsHandler)
+	adminOnly := func(handler http.HandlerFunc) http.HandlerFunc {
+		return controller.Auth.RequireRole("Admin", handler)
+	}
 
-	http.HandleFunc("/api/admin/config", controller.Admin.ConfigHandler)
+	adminOrManager := func(handler http.HandlerFunc) http.HandlerFunc {
+		return controller.Auth.RequireAdminOrRoleManager(handler)
+	}
+
+	http.HandleFunc("/api/admin/alerts", adminOnly(controller.Admin.AlertsHandler))
+
+	http.HandleFunc("/api/admin/config", adminOnly(controller.Admin.ConfigHandler))
 
 	http.HandleFunc("/api/admin/login", controller.Admin.LoginHandler)
 
 	http.HandleFunc("/api/admin/logout", controller.Admin.LogoutHandler)
 
-	http.HandleFunc("/api/admin/logs", controller.Admin.LogsHandler)
+	http.HandleFunc("/api/admin/logs", adminOnly(controller.Admin.LogsHandler))
 
-	http.HandleFunc("/api/admin/password", controller.Admin.PasswordHandler)
+	http.HandleFunc("/api/admin/password", adminOnly(controller.Admin.PasswordHandler))
 
-	http.HandleFunc("/api/admin/user-add", controller.Admin.UserAddHandler)
+	http.HandleFunc("/api/admin/user-add", adminOrManager(controller.Auth.AdminUserAddCompatHandler))
 
-	http.HandleFunc("/api/admin/user-remove", controller.Admin.UserRemoveHandler)
+	http.HandleFunc("/api/admin/user-remove", adminOrManager(controller.Auth.AdminUserRemoveCompatHandler))
+
+	http.HandleFunc("/api/admin/users", adminOrManager(controller.Auth.AdminUsersHandler))
+	http.HandleFunc("/api/admin/users/", adminOrManager(controller.Auth.AdminUserByIDHandler))
+	http.HandleFunc("/api/admin/active-sessions", adminOrManager(controller.Auth.AdminActiveSessionsHandler))
+	http.HandleFunc("/api/admin/kick/", adminOrManager(controller.Auth.AdminKickByUserIDHandler))
+
+	http.HandleFunc("/api/admin/roles", adminOrManager(controller.Auth.AdminRolesHandler))
+	http.HandleFunc("/api/admin/role-scopes", adminOrManager(controller.Auth.AdminRoleScopesHandler))
+	http.HandleFunc("/api/admin/roles/", adminOrManager(controller.Auth.AdminRoleByIDHandler))
+
+	http.HandleFunc("/api/admin/invites", adminOrManager(controller.Auth.AdminInvitesHandler))
+	http.HandleFunc("/api/admin/invites/", adminOrManager(controller.Auth.AdminInviteByIDHandler))
+
+	http.HandleFunc("/api/auth/register", controller.Auth.RegisterHandler)
+
+	http.HandleFunc("/api/auth/login", controller.Auth.LoginHandler)
+
+	http.HandleFunc("/api/auth/logout", controller.Auth.LogoutHandler)
+
+	http.HandleFunc("/api/auth/mobile-token", controller.Auth.MobileTokenHandler)
+
+	http.HandleFunc("/api/profile/codes", controller.Auth.RequireAuthenticated(controller.Auth.ProfileCodesHandler))
+	http.HandleFunc("/api/profile/codes/", controller.Auth.RequireAuthenticated(controller.Auth.ProfileCodeByIDHandler))
+
+	http.HandleFunc("/api/public/config", controller.Auth.PublicConfigHandler)
 
 	http.HandleFunc("/api/call-upload", controller.Api.CallUploadHandler)
 

@@ -1,0 +1,16 @@
+.auth-page {
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+
+    mat-card {
+        max-width: 480px;
+        width: 100%;
+    }
+
+    form {
+        display: grid;
+        gap: 12px;
+        margin-top: 12px;
+    }
+}

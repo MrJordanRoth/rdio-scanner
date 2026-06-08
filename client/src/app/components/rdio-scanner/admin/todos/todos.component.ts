@@ -18,6 +18,7 @@
  */
 
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { AuthService } from '../../../../shared/auth/auth.service';
 import { AdminEvent, Config, RdioScannerAdminService } from '../admin.service';
 
 interface Todo {
@@ -40,7 +41,10 @@ export class RdioScannerAdminTodosComponent implements OnDestroy, OnInit {
 
     private passwordNeedChange;
 
-    constructor(private adminService: RdioScannerAdminService) {
+    constructor(
+        private adminService: RdioScannerAdminService,
+        private authService: AuthService,
+    ) {
         this.eventSubscription = this.adminService.event.subscribe(async (event: AdminEvent) => {
             if ('config' in event) {
                 this.config = event.config;
@@ -71,10 +75,10 @@ export class RdioScannerAdminTodosComponent implements OnDestroy, OnInit {
     private rebuildTodos(): void {
         const todos: Todo[] = [];
 
-        if (this.passwordNeedChange) {
+        if (this.shouldShowDefaultPasswordWarning()) {
             todos.push({
                 level: 'warn',
-                message: 'You are using the default admin password, please change it from the tools / admin password menu.'
+                message: 'You are using a default password. Please navigate to the User Management -> Users tab to update your credentials.'
             });
         }
 
@@ -93,5 +97,16 @@ export class RdioScannerAdminTodosComponent implements OnDestroy, OnInit {
         }
 
         this.todos = todos;
+    }
+
+    private shouldShowDefaultPasswordWarning(): boolean {
+        if (!this.passwordNeedChange) {
+            return false;
+        }
+
+        const username = (this.authService.username || '').trim().toLowerCase();
+
+        // Restrict this warning to the RBAC bootstrap admin account context.
+        return this.authService.isAdmin() && username === 'admin';
     }
 }

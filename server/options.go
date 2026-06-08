@@ -39,6 +39,10 @@ type Options struct {
 	DisableDuplicateDetection   bool   `json:"disableDuplicateDetection"`
 	DuplicateDetectionTimeFrame uint   `json:"duplicateDetectionTimeFrame"`
 	Email                       string `json:"email"`
+	EnablePublicRegistration    bool   `json:"enablePublicRegistration"`
+	DefaultRoleId               uint64 `json:"defaultRoleId"`
+	InviteOnly                  bool   `json:"inviteOnly"`
+	AnonymousListening          bool   `json:"anonymousListening"`
 	KeypadBeeps                 string `json:"keypadBeeps"`
 	MaxClients                  uint   `json:"maxClients"`
 	PlaybackGoesLive            bool   `json:"playbackGoesLive"`
@@ -123,6 +127,38 @@ func (options *Options) FromMap(m map[string]any) *Options {
 		options.Email = v
 	}
 
+	switch v := m["enablePublicRegistration"].(type) {
+	case bool:
+		options.EnablePublicRegistration = v
+	default:
+		options.EnablePublicRegistration = defaults.options.enablePublicRegistration
+	}
+
+	switch v := m["defaultRoleId"].(type) {
+	case float64:
+		if v > 0 {
+			options.DefaultRoleId = uint64(v)
+		} else {
+			options.DefaultRoleId = defaults.options.defaultRoleId
+		}
+	default:
+		options.DefaultRoleId = defaults.options.defaultRoleId
+	}
+
+	switch v := m["inviteOnly"].(type) {
+	case bool:
+		options.InviteOnly = v
+	default:
+		options.InviteOnly = defaults.options.inviteOnly
+	}
+
+	switch v := m["anonymousListening"].(type) {
+	case bool:
+		options.AnonymousListening = v
+	default:
+		options.AnonymousListening = defaults.options.anonymousListening
+	}
+
 	switch v := m["keypadBeeps"].(type) {
 	case string:
 		options.KeypadBeeps = v
@@ -197,6 +233,10 @@ func (options *Options) Read(db *Database) error {
 	options.DimmerDelay = defaults.options.dimmerDelay
 	options.DisableDuplicateDetection = defaults.options.disableDuplicateDetection
 	options.DuplicateDetectionTimeFrame = defaults.options.duplicateDetectionTimeFrame
+	options.EnablePublicRegistration = defaults.options.enablePublicRegistration
+	options.DefaultRoleId = defaults.options.defaultRoleId
+	options.InviteOnly = defaults.options.inviteOnly
+	options.AnonymousListening = defaults.options.anonymousListening
 	options.KeypadBeeps = defaults.options.keypadBeeps
 	options.MaxClients = defaults.options.maxClients
 	options.PlaybackGoesLive = defaults.options.playbackGoesLive
@@ -292,6 +332,36 @@ func (options *Options) Read(db *Database) error {
 				switch v := f.(type) {
 				case string:
 					options.Email = v
+				}
+			}
+		case "enablePublicRegistration":
+			if err = json.Unmarshal([]byte(value.String), &f); err == nil {
+				switch v := f.(type) {
+				case bool:
+					options.EnablePublicRegistration = v
+				}
+			}
+		case "defaultRoleId":
+			if err = json.Unmarshal([]byte(value.String), &f); err == nil {
+				switch v := f.(type) {
+				case float64:
+					if v > 0 {
+						options.DefaultRoleId = uint64(v)
+					}
+				}
+			}
+		case "inviteOnly":
+			if err = json.Unmarshal([]byte(value.String), &f); err == nil {
+				switch v := f.(type) {
+				case bool:
+					options.InviteOnly = v
+				}
+			}
+		case "anonymousListening":
+			if err = json.Unmarshal([]byte(value.String), &f); err == nil {
+				switch v := f.(type) {
+				case bool:
+					options.AnonymousListening = v
 				}
 			}
 		case "keypadBeeps":
@@ -405,6 +475,10 @@ func (options *Options) Write(db *Database) error {
 	set("disableDuplicateDetection", options.DisableDuplicateDetection)
 	set("duplicateDetectionTimeFrame", options.DuplicateDetectionTimeFrame)
 	set("email", options.Email)
+	set("enablePublicRegistration", options.EnablePublicRegistration)
+	set("defaultRoleId", options.DefaultRoleId)
+	set("inviteOnly", options.InviteOnly)
+	set("anonymousListening", options.AnonymousListening)
 	set("keypadBeeps", options.KeypadBeeps)
 	set("maxClients", options.MaxClients)
 	set("playbackGoesLive", options.PlaybackGoesLive)

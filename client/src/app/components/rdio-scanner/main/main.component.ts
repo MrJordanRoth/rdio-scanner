@@ -21,8 +21,10 @@ import { ChangeDetectorRef, Component, EventEmitter, OnDestroy, OnInit, Output, 
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatInput } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import packageInfo from '../../../../../package.json';
+import { AuthService } from '../../../shared/auth/auth.service';
 import {
     RdioScannerAvoidOptions,
     RdioScannerBeepStyle,
@@ -119,6 +121,10 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
     type = '';
 
+    get isAuthenticated(): boolean {
+        return this.authService.isAuthenticated();
+    }
+
     get showListenersCount(): boolean {
         return this.config?.showListenersCount || false;
     }
@@ -140,10 +146,12 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
     private eventSubscription;
 
     constructor(
+        private authService: AuthService,
         private rdioScannerService: RdioScannerService,
         private matSnackBar: MatSnackBar,
         private ngChangeDetectorRef: ChangeDetectorRef,
         private ngFormBuilder: FormBuilder,
+        private router: Router,
     ) {
         this.authForm = this.ngFormBuilder.group<{
             password: string | null;
@@ -265,6 +273,15 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
     ngOnInit(): void {
         this.syncClock();
+    }
+
+    async logout(): Promise<void> {
+        await this.authService.logout();
+        await this.router.navigateByUrl('/login');
+    }
+
+    async goToProfile(): Promise<void> {
+        await this.router.navigateByUrl('/profile');
     }
 
     pause(): void {

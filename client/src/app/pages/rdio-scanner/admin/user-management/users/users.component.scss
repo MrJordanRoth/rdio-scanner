@@ -1,0 +1,68 @@
+.management-card {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.management-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.management-table {
+  width: 100%;
+  min-width: 760px;
+}
+
+.management-table th,
+.management-table td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  vertical-align: middle;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.access-codes-card {
+  margin: 16px 0;
+}
+
+.access-codes-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mono {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+}
+
+.status-pill {
+  display: inline-flex;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pill.status-suspended {
+  background: rgba(244, 67, 54, 0.15);
+  color: #c62828;
+}

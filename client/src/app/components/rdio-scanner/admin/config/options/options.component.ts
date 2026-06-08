@@ -19,6 +19,7 @@
 
 import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { FormGroup } from '@angular/forms';
+import { AdminRole, UserManagementService } from '../../../../../pages/rdio-scanner/admin/user-management/user-management.service';
 
 @Component({
     selector: 'rdio-scanner-admin-options',
@@ -28,6 +29,14 @@ import { FormGroup } from '@angular/forms';
 })
 export class RdioScannerAdminOptionsComponent {
     @Input() form: FormGroup | null = null;
+
+    roles: AdminRole[] = [];
+
+    constructor(private userManagementService: UserManagementService) {}
+
+    async ngOnInit(): Promise<void> {
+        this.roles = await this.userManagementService.listRoles();
+    }
 
     get controls() {
         return this.form ? this.form.controls : {};

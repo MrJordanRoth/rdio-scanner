@@ -18,8 +18,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, QueryList, ViewChildren, ViewEncapsulation } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormArray, FormControl, FormGroup } from '@angular/forms';
 import { MatExpansionPanel } from '@angular/material/expansion';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { AdminEvent, RdioScannerAdminService, Config } from '../admin.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -36,10 +38,6 @@ export class RdioScannerAdminConfigComponent implements OnDestroy, OnInit {
     docker = false;
 
     form: FormGroup | undefined;
-
-    get access(): FormArray {
-        return this.form?.get('access') as FormArray;
-    }
 
     get apikeys(): FormArray {
         return this.form?.get('apikeys') as FormArray;
@@ -78,6 +76,7 @@ export class RdioScannerAdminConfigComponent implements OnDestroy, OnInit {
     constructor(
         private adminService: RdioScannerAdminService,
         private ngChangeDetectorRef: ChangeDetectorRef,
+        private matSnackBar: MatSnackBar,
     ) {
         this.adminService.event.pipe(takeUntil(this.destroy$)).subscribe(async (event: AdminEvent) => {
             if ('authenticated' in event && event.authenticated === true) {
@@ -171,8 +170,22 @@ export class RdioScannerAdminConfigComponent implements OnDestroy, OnInit {
     async save(): Promise<void> {
         if (!this.form) { return; }
 
-        this.form.markAsPristine();
+        try {
+            await this.adminService.saveConfig(this.form.getRawValue());
+            this.form.markAsPristine();
+            this.matSnackBar.open('Settings saved successfully', 'Close', {
+                duration: 3000,
+                horizontalPosition: 'center',
+                verticalPosition: 'bottom',
+            });
 
-        await this.adminService.saveConfig(this.form.getRawValue());
+        } catch (error) {
+            const message = error instanceof HttpErrorResponse
+                ? (typeof error.error?.error === 'string' ? error.error.error : error.message)
+                : 'Unable to save configuration';
+
+            this.matSnackBar.open(message, '', { duration: 7000 });
+            this.form.markAsDirty();
+        }
     }
 }

@@ -19,11 +19,11 @@
 
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { NgModule } from '@angular/core';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { AppSharedModule } from '../../../shared/shared.module';
 import { RdioScannerAdminComponent } from './admin.component';
 import { RdioScannerAdminService } from './admin.service';
 import { RdioScannerAdminConfigComponent } from './config/config.component';
-import { RdioScannerAdminAccessComponent } from './config/access/access.component';
 import { RdioScannerAdminApikeysComponent } from './config/apikeys/apikeys.component';
 import { RdioScannerAdminDirwatchComponent } from './config/dirwatch/dirwatch.component';
 import { RdioScannerAdminDownstreamsComponent } from './config/downstreams/downstreams.component';
@@ -36,19 +36,16 @@ import { RdioScannerAdminSystemsComponent } from './config/systems/systems.compo
 import { RdioScannerAdminTalkgroupComponent } from './config/systems/talkgroup/talkgroup.component';
 import { RdioScannerAdminUnitComponent } from './config/systems/unit/unit.component';
 import { RdioScannerAdminTagsComponent } from './config/tags/tags.component';
-import { RdioScannerAdminLoginComponent } from './login/login.component';
 import { RdioScannerAdminLogsComponent } from './logs/logs.component';
 import { RdioScannerAdminTodosComponent } from './todos/todos.component';
 import { RdioScannerAdminToolsComponent } from './tools/tools.component';
 import { RdioScannerAdminImportExportConfigComponent } from './tools/import-export-config/import-export-config.component';
 import { RdioScannerAdminImportTalkgroupsComponent } from './tools/import-talkgroups/import-talkgroups.component';
 import { RdioScannerAdminImportUnitsComponent } from './tools/import-units/import-units.component';
-import { RdioScannerAdminPasswordComponent } from './tools/password/password.component';
 
 @NgModule({ declarations: [
         RdioScannerAdminComponent,
         RdioScannerAdminConfigComponent,
-        RdioScannerAdminAccessComponent,
         RdioScannerAdminApikeysComponent,
         RdioScannerAdminDirwatchComponent,
         RdioScannerAdminDownstreamsComponent,
@@ -56,10 +53,8 @@ import { RdioScannerAdminPasswordComponent } from './tools/password/password.com
         RdioScannerAdminImportExportConfigComponent,
         RdioScannerAdminImportTalkgroupsComponent,
         RdioScannerAdminImportUnitsComponent,
-        RdioScannerAdminLoginComponent,
         RdioScannerAdminLogsComponent,
         RdioScannerAdminOptionsComponent,
-        RdioScannerAdminPasswordComponent,
         RdioScannerAdminSiteComponent,
         RdioScannerAdminSystemComponent,
         RdioScannerAdminSystemsComponent,
@@ -70,5 +65,17 @@ import { RdioScannerAdminPasswordComponent } from './tools/password/password.com
         RdioScannerAdminToolsComponent,
         RdioScannerAdminUnitComponent,
     ],
-    exports: [RdioScannerAdminComponent], imports: [AppSharedModule], providers: [RdioScannerAdminService, provideHttpClient(withInterceptorsFromDi())] })
+    exports: [
+        RdioScannerAdminComponent,
+        RdioScannerAdminConfigComponent,
+        RdioScannerAdminLogsComponent,
+        RdioScannerAdminTodosComponent,
+        RdioScannerAdminToolsComponent,
+    ], imports: [
+        AppSharedModule,
+        MatSnackBarModule,
+    ], providers: [
+        RdioScannerAdminService,
+        provideHttpClient(withInterceptorsFromDi()),
+    ] })
 export class RdioScannerAdminModule { }

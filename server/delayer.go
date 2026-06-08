@@ -141,20 +141,13 @@ func (delayer *Delayer) Start() error {
 }
 
 func (delayer *Delayer) getDelay(call *Call) uint {
-	if call.Talkgroup.Delay > 0 {
-		return call.Talkgroup.Delay
-
-	} else if call.System.Delay > 0 {
-		return call.System.Delay
-	}
-
 	return 0
 }
 
 func (delayer *Delayer) getTimestamp(call *Call) time.Time {
 	delay := delayer.getDelay(call)
 
-	return call.Timestamp.Add(time.Duration(delay) * time.Minute)
+	return time.Now().Add(time.Duration(delay) * time.Second)
 }
 
 func (delayer *Delayer) pop(call *Call) error {

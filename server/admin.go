@@ -75,12 +75,6 @@ func NewAdmin(controller *Controller) *Admin {
 func (admin *Admin) AlertsHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		t := admin.GetAuthorization(r)
-		if !admin.ValidateToken(t) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
 		if b, err := json.Marshal(Alerts); err == nil {
 			w.Write(b)
 		} else {
@@ -152,12 +146,8 @@ func (admin *Admin) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 			conn.SetReadDeadline(time.Time{})
 
 			for {
-				_, b, err := conn.ReadMessage()
+				_, _, err := conn.ReadMessage()
 				if err != nil {
-					break
-				}
-
-				if !admin.ValidateToken(string(b)) {
 					break
 				}
 			}
@@ -172,10 +162,10 @@ func (admin *Admin) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 			admin.Controller.Logs.LogEvent(LogLevelError, fmt.Sprintf("admin.confighandler.put: %s", err.Error()))
 		}
 
-		t := admin.GetAuthorization(r)
-		if !admin.ValidateToken(t) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+		writeError := func(status int, message string) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 		}
 
 		switch r.Method {
@@ -183,10 +173,12 @@ func (admin *Admin) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 			admin.SendConfig(w)
 
 		case http.MethodPut:
+			var handlerErr error
+
 			m := map[string]any{}
 			err := json.NewDecoder(r.Body).Decode(&m)
 			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
+				writeError(http.StatusBadRequest, "invalid request body")
 				return
 			}
 
@@ -194,6 +186,7 @@ func (admin *Admin) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 			defer admin.mutex.Unlock()
 
 			admin.Controller.Dirwatches.Stop()
+			defer admin.Controller.Dirwatches.Start(admin.Controller)
 
 			switch v := m["access"].(type) {
 			case []any:
@@ -201,112 +194,143 @@ func (admin *Admin) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 				err := admin.Controller.Accesses.Write(admin.Controller.Database)
 				if err != nil {
 					logError(err)
+					handlerErr = err
 				} else {
 					err = admin.Controller.Accesses.Read(admin.Controller.Database)
 					if err != nil {
 						logError(err)
+						handlerErr = err
 					}
 				}
 			}
 
-			switch v := m["apikeys"].(type) {
+			if handlerErr == nil {
+				switch v := m["apikeys"].(type) {
 			case []any:
 				admin.Controller.Apikeys.FromMap(v)
 				err = admin.Controller.Apikeys.Write(admin.Controller.Database)
 				if err != nil {
 					logError(err)
+					handlerErr = err
 				} else {
 					err = admin.Controller.Apikeys.Read(admin.Controller.Database)
 					if err != nil {
 						logError(err)
+						handlerErr = err
 					}
 				}
 			}
+			}
 
-			switch v := m["dirwatch"].(type) {
+			if handlerErr == nil {
+				switch v := m["dirwatch"].(type) {
 			case []any:
 				admin.Controller.Dirwatches.FromMap(v)
 				err = admin.Controller.Dirwatches.Write(admin.Controller.Database)
 				if err != nil {
 					logError(err)
+					handlerErr = err
 				} else {
 					err = admin.Controller.Dirwatches.Read(admin.Controller.Database)
 					if err != nil {
 						logError(err)
+						handlerErr = err
 					}
 				}
 			}
+			}
 
-			switch v := m["downstreams"].(type) {
+			if handlerErr == nil {
+				switch v := m["downstreams"].(type) {
 			case []any:
 				admin.Controller.Downstreams.FromMap(v)
 				err = admin.Controller.Downstreams.Write(admin.Controller.Database)
 				if err != nil {
 					logError(err)
+					handlerErr = err
 				} else {
 					err = admin.Controller.Downstreams.Read(admin.Controller.Database)
 					if err != nil {
 						logError(err)
+						handlerErr = err
 					}
 				}
 			}
+			}
 
-			switch v := m["groups"].(type) {
+			if handlerErr == nil {
+				switch v := m["groups"].(type) {
 			case []any:
 				admin.Controller.Groups.FromMap(v)
 				err = admin.Controller.Groups.Write(admin.Controller.Database)
 				if err != nil {
 					logError(err)
+					handlerErr = err
 				} else {
 					err = admin.Controller.Groups.Read(admin.Controller.Database)
 					if err != nil {
 						logError(err)
+						handlerErr = err
 					}
 				}
 			}
+			}
 
-			switch v := m["options"].(type) {
+			if handlerErr == nil {
+				switch v := m["options"].(type) {
 			case map[string]any:
 				admin.Controller.Options.FromMap(v)
 				err = admin.Controller.Options.Write(admin.Controller.Database)
 				if err != nil {
 					logError(err)
+					handlerErr = err
 				}
 			}
-
-			switch v := m["systems"].(type) {
-			case []any:
-				admin.Controller.Systems.FromMap(v)
-				err = admin.Controller.Systems.Write(admin.Controller.Database)
-				if err != nil {
-					logError(err)
-				} else {
-					err = admin.Controller.Systems.Read(admin.Controller.Database)
-					if err != nil {
-						logError(err)
-					}
-				}
 			}
 
-			switch v := m["tags"].(type) {
+			if handlerErr == nil {
+				switch v := m["tags"].(type) {
 			case []any:
 				admin.Controller.Tags.FromMap(v)
 				err = admin.Controller.Tags.Write(admin.Controller.Database)
 				if err != nil {
 					logError(err)
+					handlerErr = err
 				} else {
 					err = admin.Controller.Tags.Read(admin.Controller.Database)
 					if err != nil {
 						logError(err)
+						handlerErr = err
 					}
 				}
 			}
+			}
+
+			if handlerErr == nil {
+				switch v := m["systems"].(type) {
+			case []any:
+				admin.Controller.Systems.FromMap(v)
+				err = admin.Controller.Systems.Write(admin.Controller.Database)
+				if err != nil {
+					logError(err)
+					handlerErr = err
+				} else {
+					err = admin.Controller.Systems.Read(admin.Controller.Database)
+					if err != nil {
+						logError(err)
+						handlerErr = err
+					}
+				}
+			}
+			}
+
+			if handlerErr != nil {
+				writeError(http.StatusInternalServerError, handlerErr.Error())
+				return
+			}
 
 			admin.Controller.EmitConfig()
-			admin.Controller.Dirwatches.Start(admin.Controller)
-
 			admin.SendConfig(w)
-
 			admin.Controller.Logs.LogEvent(LogLevelWarn, "configuration changed")
 
 		default:
@@ -316,7 +340,13 @@ func (admin *Admin) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (admin *Admin) GetAuthorization(r *http.Request) string {
-	return r.Header.Get("Authorization")
+	t := strings.TrimSpace(r.Header.Get("Authorization"))
+
+	if strings.HasPrefix(strings.ToLower(t), "bearer ") {
+		return strings.TrimSpace(t[7:])
+	}
+
+	return t
 }
 
 func (admin *Admin) GetConfig() map[string]any {
@@ -334,12 +364,6 @@ func (admin *Admin) GetConfig() map[string]any {
 }
 
 func (admin *Admin) LogsHandler(w http.ResponseWriter, r *http.Request) {
-	t := admin.GetAuthorization(r)
-	if !admin.ValidateToken(t) {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	switch r.Method {
 	case http.MethodPost:
 		m := map[string]any{}
@@ -470,13 +494,12 @@ func (admin *Admin) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		t := admin.GetAuthorization(r)
-		if !admin.ValidateToken(t) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		for k, v := range admin.Tokens {
-			if v == t {
-				admin.Tokens = append(admin.Tokens[:k], admin.Tokens[k+1:]...)
+		if t != "" && admin.ValidateToken(t) {
+			for k, v := range admin.Tokens {
+				if v == t {
+					admin.Tokens = append(admin.Tokens[:k], admin.Tokens[k+1:]...)
+					break
+				}
 			}
 		}
 		w.WriteHeader(http.StatusOK)
@@ -497,12 +520,6 @@ func (admin *Admin) PasswordHandler(w http.ResponseWriter, r *http.Request) {
 
 		logError := func(err error) {
 			admin.Controller.Logs.LogEvent(LogLevelError, fmt.Sprintf("admin.passwordhandler.post: %s", err.Error()))
-		}
-
-		t := admin.GetAuthorization(r)
-		if !admin.ValidateToken(t) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
 		}
 
 		m := map[string]any{}
@@ -608,12 +625,6 @@ func (admin *Admin) UserAddHandler(w http.ResponseWriter, r *http.Request) {
 			admin.Controller.Logs.LogEvent(LogLevelError, fmt.Sprintf("admin.useraddhandler.post: %s", err.Error()))
 		}
 
-		t := admin.GetAuthorization(r)
-		if !admin.ValidateToken(t) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
 		m := map[string]any{}
 		err := json.NewDecoder(r.Body).Decode(&m)
 		if err != nil {
@@ -646,12 +657,6 @@ func (admin *Admin) UserRemoveHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		logError := func(err error) {
 			admin.Controller.Logs.LogEvent(LogLevelError, fmt.Sprintf("admin.userremovehandler.post: %s", err.Error()))
-		}
-
-		t := admin.GetAuthorization(r)
-		if !admin.ValidateToken(t) {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
 		}
 
 		m := map[string]any{}

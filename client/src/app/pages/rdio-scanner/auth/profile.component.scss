@@ -1,0 +1,51 @@
+.auth-page {
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+
+    .profile-card {
+        max-width: 640px;
+        width: 100%;
+    }
+
+    .hint {
+        color: rgba(0, 0, 0, 0.65);
+        margin-top: 0;
+    }
+
+    .create-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        margin-bottom: 16px;
+
+        mat-form-field {
+            flex: 1;
+        }
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .codes-table {
+        width: 100%;
+        min-width: 560px;
+    }
+
+    .code-value {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 12px;
+    }
+
+    h3 {
+        margin: 16px 0 4px;
+    }
+
+    @media (max-width: 720px) {
+        .create-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+}

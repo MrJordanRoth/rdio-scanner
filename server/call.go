@@ -398,7 +398,11 @@ func (calls *Calls) Search(searchOptions *CallsSearchOptions, client *Client) (*
 					a = append(a, c)
 				}
 			}
-			where = fmt.Sprintf("(%s)", strings.Join(a, " OR "))
+			if len(a) > 0 {
+				where = fmt.Sprintf("(%s)", strings.Join(a, " OR "))
+			} else {
+				where = "1 = 0"
+			}
 		}
 	}
 

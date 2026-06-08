@@ -34,7 +34,9 @@ import (
 type Client struct {
 	Access     *Access
 	AuthCount  int
+	ConnectedAt time.Time
 	Controller *Controller
+	ConnectionLimit uint
 	Conn       *websocket.Conn
 	Send       chan *Message
 	Systems    []System
@@ -43,6 +45,8 @@ type Client struct {
 	TagsData   []Tag
 	TagsMap    TagsMap
 	Livefeed   *Livefeed
+	UserId     uint64
+	Username   string
 	SystemsMap SystemsMap
 	request    *http.Request
 }
@@ -65,10 +69,28 @@ func (client *Client) Init(controller *Controller, request *http.Request, conn *
 
 	client.Access = NewAccess()
 	client.Controller = controller
+	client.ConnectedAt = time.Now().UTC()
 	client.Conn = conn
 	client.Livefeed = NewLivefeed()
 	client.Send = make(chan *Message, 8192)
 	client.request = request
+
+	if user, ok, err := controller.Auth.getSessionUser(request); err == nil && ok {
+		if rolesErr := controller.Roles.Read(controller.Database); rolesErr == nil {
+			if systemsErr := controller.Systems.Read(controller.Database); systemsErr == nil {
+				if access, connectionLimit := controller.Roles.BuildAccessFromUserRoles(user, controller.Systems); access != nil {
+					client.Access = access
+					client.UserId = user.Id
+					client.Username = user.Username
+					client.ConnectionLimit = connectionLimit
+				}
+			}
+		}
+	} else if controller.Options.AnonymousListening {
+		// Guest connection: allow read-only access to audio; use default open access.
+		client.Access = NewAccess()
+		client.Username = "guest"
+	}
 
 	go func() {
 		defer func() {
@@ -260,12 +282,86 @@ func (clients *Clients) Count() int {
 	return len(clients.Map)
 }
 
+func (clients *Clients) UserCount(userId uint64) int {
+	clients.mutex.Lock()
+	defer clients.mutex.Unlock()
+
+	count := 0
+	for c := range clients.Map {
+		if c.UserId == userId {
+			count++
+		}
+	}
+
+	return count
+}
+
+type ActiveSession struct {
+	UserId            uint64
+	Username          string
+	IpAddress         string
+	ConnectionSeconds uint64
+}
+
+func (clients *Clients) GetActiveSessions() []ActiveSession {
+	clients.mutex.Lock()
+	defer clients.mutex.Unlock()
+
+	sessions := []ActiveSession{}
+	now := time.Now().UTC()
+
+	for c := range clients.Map {
+		if c.UserId == 0 {
+			continue
+		}
+
+		duration := uint64(0)
+		if !c.ConnectedAt.IsZero() && now.After(c.ConnectedAt) {
+			duration = uint64(now.Sub(c.ConnectedAt).Seconds())
+		}
+
+		sessions = append(sessions, ActiveSession{
+			UserId:            c.UserId,
+			Username:          c.Username,
+			IpAddress:         c.GetRemoteAddr(),
+			ConnectionSeconds: duration,
+		})
+	}
+
+	return sessions
+}
+
+func (clients *Clients) KickUser(userId uint64) int {
+	clients.mutex.Lock()
+	defer clients.mutex.Unlock()
+
+	kicked := 0
+	for c := range clients.Map {
+		if c.UserId != userId {
+			continue
+		}
+
+		_ = c.Conn.Close()
+		kicked++
+	}
+
+	return kicked
+}
+
 func (clients *Clients) EmitCall(call *Call, restricted bool) {
 	clients.mutex.Lock()
 	defer clients.mutex.Unlock()
 
 	for c := range clients.Map {
-		if (!restricted || c.Access.HasAccess(call)) && c.Livefeed.IsEnabled(call) {
+		allowed := c.Livefeed.IsEnabled(call)
+
+		if c.UserId > 0 {
+			allowed = allowed && c.Access != nil && c.Access.HasAccess(call)
+		} else if restricted {
+			allowed = allowed && c.Access.HasAccess(call)
+		}
+
+		if allowed {
 			c.Send <- &Message{Command: MessageCommandCall, Payload: call}
 		}
 	}

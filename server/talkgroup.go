@@ -33,7 +33,6 @@ import (
 type Talkgroup struct {
 	Id           uint64
 	Alert        string
-	Delay        uint
 	Frequency    uint
 	GroupIds     []uint64
 	Kind         string
@@ -60,11 +59,6 @@ func (talkgroup *Talkgroup) FromMap(m map[string]any) *Talkgroup {
 	switch v := m["alert"].(type) {
 	case string:
 		talkgroup.Alert = v
-	}
-
-	switch v := m["delay"].(type) {
-	case float64:
-		talkgroup.Delay = uint(v)
 	}
 
 	switch v := m["frequency"].(type) {
@@ -132,10 +126,6 @@ func (talkgroup *Talkgroup) MarshalJSON() ([]byte, error) {
 
 	if len(talkgroup.Alert) > 0 {
 		m["alert"] = talkgroup.Alert
-	}
-
-	if talkgroup.Delay > 0 {
-		m["delay"] = talkgroup.Delay
 	}
 
 	if talkgroup.Frequency > 0 {
@@ -248,10 +238,10 @@ func (talkgroups *Talkgroups) ReadTx(tx *sql.Tx, systemId uint64, dbType string)
 	formatError := errorFormatter("talkgroups", "read")
 
 	if dbType == DbTypePostgresql {
-		query = fmt.Sprintf(`SELECT t."talkgroupId", t."alert", t."delay", t."frequency", t."label", t."led", t."name", t."order", t."tagId", t."talkgroupRef", t."type", STRING_AGG(CAST(COALESCE(tg."groupId", 0) AS text), ',') FROM "talkgroups" AS t LEFT JOIN "talkgroupGroups" AS tg ON tg."talkgroupId" = t."talkgroupId" WHERE t."systemId" = %d GROUP BY t."talkgroupId"`, systemId)
+		query = fmt.Sprintf(`SELECT t."talkgroupId", t."alert", t."frequency", t."label", t."led", t."name", t."order", t."tagId", t."talkgroupRef", t."type", STRING_AGG(CAST(COALESCE(tg."groupId", 0) AS text), ',') FROM "talkgroups" AS t LEFT JOIN "talkgroupGroups" AS tg ON tg."talkgroupId" = t."talkgroupId" WHERE t."systemId" = %d GROUP BY t."talkgroupId"`, systemId)
 
 	} else {
-		query = fmt.Sprintf(`SELECT t."talkgroupId", t."alert", t."delay", t."frequency", t."label", t."led", t."name", t."order", t."tagId", t."talkgroupRef", t."type", GROUP_CONCAT(COALESCE(tg."groupId", 0)) FROM "talkgroups" AS t LEFT JOIN "talkgroupGroups" AS tg ON tg."talkgroupId" = t."talkgroupId" WHERE t."systemId" = %d GROUP BY t."talkgroupId"`, systemId)
+		query = fmt.Sprintf(`SELECT t."talkgroupId", t."alert", t."frequency", t."label", t."led", t."name", t."order", t."tagId", t."talkgroupRef", t."type", GROUP_CONCAT(COALESCE(tg."groupId", 0)) FROM "talkgroups" AS t LEFT JOIN "talkgroupGroups" AS tg ON tg."talkgroupId" = t."talkgroupId" WHERE t."systemId" = %d GROUP BY t."talkgroupId"`, systemId)
 	}
 
 	if rows, err = tx.Query(query); err != nil {
@@ -261,7 +251,7 @@ func (talkgroups *Talkgroups) ReadTx(tx *sql.Tx, systemId uint64, dbType string)
 	for rows.Next() {
 		talkgroup := NewTalkgroup()
 
-		if err = rows.Scan(&talkgroup.Id, &talkgroup.Alert, &talkgroup.Delay, &talkgroup.Frequency, &talkgroup.Label, &talkgroup.Led, &talkgroup.Name, &talkgroup.Order, &talkgroup.TagId, &talkgroup.TalkgroupRef, &talkgroup.Kind, &groupIds); err != nil {
+		if err = rows.Scan(&talkgroup.Id, &talkgroup.Alert, &talkgroup.Frequency, &talkgroup.Label, &talkgroup.Led, &talkgroup.Name, &talkgroup.Order, &talkgroup.TagId, &talkgroup.TalkgroupRef, &talkgroup.Kind, &groupIds); err != nil {
 			break
 		}
 
@@ -358,7 +348,7 @@ func (talkgroups *Talkgroups) WriteTx(tx *sql.Tx, systemId uint64, dbType string
 		}
 
 		if count == 0 {
-			query = fmt.Sprintf(`INSERT INTO "talkgroups" ("alert", "delay", "frequency", "label", "led", "name", "order", "systemId", "tagId", "talkgroupRef", "type") VALUES ('%s', %d, %d, '%s', '%s', '%s', %d, %d, %d, %d, '%s')`, talkgroup.Alert, talkgroup.Delay, talkgroup.Frequency, escapeQuotes(talkgroup.Label), talkgroup.Led, escapeQuotes(talkgroup.Name), talkgroup.Order, systemId, talkgroup.TagId, talkgroup.TalkgroupRef, talkgroup.Kind)
+			query = fmt.Sprintf(`INSERT INTO "talkgroups" ("alert", "frequency", "label", "led", "name", "order", "systemId", "tagId", "talkgroupRef", "type") VALUES ('%s', %d, '%s', '%s', '%s', %d, %d, %d, %d, '%s')`, talkgroup.Alert, talkgroup.Frequency, escapeQuotes(talkgroup.Label), talkgroup.Led, escapeQuotes(talkgroup.Name), talkgroup.Order, systemId, talkgroup.TagId, talkgroup.TalkgroupRef, talkgroup.Kind)
 
 			if dbType == DbTypePostgresql {
 				query = query + ` RETURNING "talkgroupId"`
@@ -378,7 +368,7 @@ func (talkgroups *Talkgroups) WriteTx(tx *sql.Tx, systemId uint64, dbType string
 			}
 
 		} else {
-			query = fmt.Sprintf(`UPDATE "talkgroups" SET "alert" = '%s', "delay" = %d, "frequency" = %d, "label" = '%s', "led" = '%s', "name" = '%s', "order" = %d, "tagId" = %d, "talkgroupRef" = %d, "type" = '%s' WHERE "talkgroupId" = %d`, talkgroup.Alert, talkgroup.Delay, talkgroup.Frequency, escapeQuotes(talkgroup.Label), talkgroup.Led, escapeQuotes(talkgroup.Name), talkgroup.Order, talkgroup.TagId, talkgroup.TalkgroupRef, talkgroup.Kind, talkgroup.Id)
+			query = fmt.Sprintf(`UPDATE "talkgroups" SET "alert" = '%s', "frequency" = %d, "label" = '%s', "led" = '%s', "name" = '%s', "order" = %d, "tagId" = %d, "talkgroupRef" = %d, "type" = '%s' WHERE "talkgroupId" = %d`, talkgroup.Alert, talkgroup.Frequency, escapeQuotes(talkgroup.Label), talkgroup.Led, escapeQuotes(talkgroup.Name), talkgroup.Order, talkgroup.TagId, talkgroup.TalkgroupRef, talkgroup.Kind, talkgroup.Id)
 			if _, err = tx.Exec(query); err != nil {
 				break
 			}

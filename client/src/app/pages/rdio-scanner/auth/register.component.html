@@ -1,0 +1,33 @@
+<div class="auth-page">
+    <mat-card>
+        <mat-card-header>
+            <mat-card-title>Create Account</mat-card-title>
+        </mat-card-header>
+
+        <mat-card-content>
+            <form [formGroup]="form" (ngSubmit)="submit()">
+                <mat-form-field appearance="fill">
+                    <mat-label>Username</mat-label>
+                    <input matInput formControlName="username" autocomplete="username" />
+                </mat-form-field>
+
+                <mat-form-field appearance="fill">
+                    <mat-label>Password</mat-label>
+                    <input matInput formControlName="password" type="password" autocomplete="new-password" />
+                </mat-form-field>
+
+                <mat-form-field appearance="fill">
+                    <mat-label>Invite Code</mat-label>
+                    <input matInput formControlName="inviteCode" />
+                    <mat-hint>(Optional if public registration is open)</mat-hint>
+                </mat-form-field>
+
+                <button mat-flat-button color="primary" [disabled]="loading || form.invalid" type="submit">Register</button>
+            </form>
+        </mat-card-content>
+
+        <mat-card-actions>
+            <a mat-button routerLink="/login">Back to login</a>
+        </mat-card-actions>
+    </mat-card>
+</div>

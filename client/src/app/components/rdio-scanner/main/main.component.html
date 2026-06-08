@@ -1,5 +1,13 @@
 <div class="rdio-status">
   <div class="branding">{{ branding }}</div>
+  <ng-container *ngIf="isAuthenticated">
+    <div class="logout-control">
+      <button class="rdio-button profile-button" type="button" (click)="goToProfile()">My Account</button>
+    </div>
+    <div class="logout-control">
+      <button class="rdio-button logout-button" type="button" (click)="logout()">Logout</button>
+    </div>
+  </ng-container>
   <div class="led" [ngClass]="ledStyle"></div>
 </div>
 <div class="rdio-display" [ngClass]="{ idle: !dimmer }" (dblclick)="toggleFullscreen.emit()">

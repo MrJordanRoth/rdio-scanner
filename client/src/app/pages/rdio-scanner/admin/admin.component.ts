@@ -17,8 +17,9 @@
  * ****************************************************************************
  */
 
-import { Component } from '@angular/core';
-import packageInfo from '../../../../../package.json';
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../shared/auth/auth.service';
 
 @Component({
     selector: 'rdio-scanner-admin-page',
@@ -26,6 +27,28 @@ import packageInfo from '../../../../../package.json';
     templateUrl: './admin.component.html',
     standalone: false
 })
-export class RdioScannerAdminPageComponent {
-    version = packageInfo.version;
+export class RdioScannerAdminPageComponent implements OnInit {
+    constructor(
+        private authService: AuthService,
+        private router: Router,
+    ) {}
+
+    get isAdmin(): boolean {
+        return this.authService.isAdmin();
+    }
+
+    get canManageUsersAndInvites(): boolean {
+        return this.authService.isAdmin() || this.authService.isRoleManager();
+    }
+
+    async ngOnInit(): Promise<void> {
+        if (!this.isAdmin && this.authService.isRoleManager()) {
+            await this.router.navigateByUrl('/admin/users');
+        }
+    }
+
+    async logout(): Promise<void> {
+        await this.authService.logout();
+        await this.router.navigateByUrl('/login');
+    }
 }

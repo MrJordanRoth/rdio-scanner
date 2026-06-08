@@ -18,11 +18,60 @@
  */
 
 import { Routes } from '@angular/router';
+import { strictAdminGuard } from '../../../shared/auth/auth.guard';
+import { RdioScannerAdminActiveSessionsPageComponent } from './active-sessions/active-sessions.component';
 import { RdioScannerAdminPageComponent } from './admin.component';
+import { RdioScannerAdminDashboardPageComponent } from './dashboard/admin-dashboard.component';
+import { RdioScannerAdminConfigPageComponent } from './system/config/admin-config-page.component';
+import { RdioScannerAdminLogsPageComponent } from './system/logs/admin-logs-page.component';
+import { RdioScannerAdminToolsPageComponent } from './system/tools/admin-tools-page.component';
+import { RdioScannerAdminInvitesPageComponent } from './user-management/invites/invites.component';
+import { RdioScannerAdminRolesPageComponent } from './user-management/roles/roles.component';
+import { RdioScannerAdminUsersPageComponent } from './user-management/users/users.component';
 
 export const routes: Routes = [
     {
         path: '',
         component: RdioScannerAdminPageComponent,
+        children: [
+            {
+                path: '',
+                component: RdioScannerAdminDashboardPageComponent,
+                canActivate: [strictAdminGuard],
+                pathMatch: 'full',
+            },
+            {
+                path: 'users',
+                component: RdioScannerAdminUsersPageComponent,
+            },
+            {
+                path: 'config',
+                component: RdioScannerAdminConfigPageComponent,
+                canActivate: [strictAdminGuard],
+            },
+            {
+                path: 'logs',
+                component: RdioScannerAdminLogsPageComponent,
+                canActivate: [strictAdminGuard],
+            },
+            {
+                path: 'tools',
+                component: RdioScannerAdminToolsPageComponent,
+                canActivate: [strictAdminGuard],
+            },
+            {
+                path: 'active-sessions',
+                component: RdioScannerAdminActiveSessionsPageComponent,
+            },
+            {
+                path: 'roles',
+                component: RdioScannerAdminRolesPageComponent,
+                canActivate: [strictAdminGuard],
+            },
+            {
+                path: 'invites',
+                component: RdioScannerAdminInvitesPageComponent,
+            },
+        ],
     },
 ];

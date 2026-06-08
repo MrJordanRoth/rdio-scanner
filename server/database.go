@@ -25,6 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -45,7 +47,15 @@ func NewDatabase(config *Config) *Database {
 
 	switch config.DbType {
 	case DbTypeSqlite:
-		dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys=on&_pragma=busy_timeout%%3d10000", config.GetDbFilePath())
+		dbFilePath := config.GetDbFilePath()
+
+		if dir := filepath.Dir(dbFilePath); dir != "" && dir != "." {
+			if err = os.MkdirAll(dir, 0770); err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys=on&_pragma=busy_timeout%%3d10000", dbFilePath)
 
 		if database.Sql, err = sql.Open("sqlite", dsn); err != nil {
 			log.Fatal(err)
@@ -131,6 +141,14 @@ func (db *Database) migrate() error {
 		return formatError(err, "")
 	}
 
+	if err := migrateRoleManagers(db); err != nil {
+		return formatError(err, "")
+	}
+
+	if err := migrateUserSuspensionAndInviteRoles(db); err != nil {
+		return formatError(err, "")
+	}
+
 	if err := migrateUnits(db); err != nil {
 		return formatError(err, "")
 	}
@@ -164,6 +182,10 @@ func (db *Database) migrate() error {
 	}
 
 	if err := migrateAccesses(db); err != nil {
+		return formatError(err, "")
+	}
+
+	if err := migrateAccessCodes(db); err != nil {
 		return formatError(err, "")
 	}
 

@@ -1,0 +1,38 @@
+.management-card {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.management-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.management-table {
+  width: 100%;
+  min-width: 680px;
+}
+
+.management-table th,
+.management-table td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  vertical-align: middle;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

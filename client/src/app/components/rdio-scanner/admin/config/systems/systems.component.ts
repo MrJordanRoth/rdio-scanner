@@ -21,7 +21,7 @@ import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { Component, Input, QueryList, ViewChildren, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { FormArray, FormGroup } from '@angular/forms';
 import { MatExpansionPanel } from '@angular/material/expansion';
-import { RdioScannerAdminService } from '../../admin.service';
+import { RdioScannerAdminService, Group, Tag } from '../../admin.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -51,6 +51,14 @@ export class RdioScannerAdminSystemsComponent implements OnDestroy {
 
     get systems(): FormGroup[] {
         return this._systemsCache;
+    }
+
+    get groups(): Group[] {
+        return (this._form?.root.get('groups')?.value as Group[]) || [];
+    }
+
+    get tags(): Tag[] {
+        return (this._form?.root.get('tags')?.value as Tag[]) || [];
     }
 
     @ViewChildren(MatExpansionPanel) private panels: QueryList<MatExpansionPanel> | undefined;

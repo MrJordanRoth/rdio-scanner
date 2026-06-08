@@ -126,7 +126,7 @@ export class RdioScannerAdminSystemsSelectComponent implements OnDestroy {
                     checked: this.ngFormBuilder.nonNullable.control(false),
                     groupIds: this.ngFormBuilder.nonNullable.control(configTalkgroup.get('groupIds')?.value),
                     id: this.ngFormBuilder.nonNullable.control(configTalkgroup.get('talkgroupRef')?.value),
-                    tagId: this.ngFormBuilder.nonNullable.control(configTalkgroup.get('tagId')?.value),
+                    tagIds: this.ngFormBuilder.nonNullable.control(this.toIdArray(configTalkgroup.get('tagId')?.value)),
                 });
                 faSystemTalkgroups.push(fgSystemTalkgroup);
                 this.subs.add(fgSystemTalkgroup.valueChanges.subscribe(() => {
@@ -172,7 +172,7 @@ export class RdioScannerAdminSystemsSelectComponent implements OnDestroy {
                 for (const fgSystem of faSystems.controls) {
                     const faTalkgroups = fgSystem.get('talkgroups') as FormArray;
                     for (const fgTalkgroup of faTalkgroups.controls) {
-                        if (fgTalkgroup.value.tagId === vTag.id && fgTalkgroup.value.checked !== vTag.checked) {
+                        if (this.toIdArray(fgTalkgroup.value.tagIds).includes(vTag.id) && fgTalkgroup.value.checked !== vTag.checked) {
                             fgTalkgroup.get('checked')?.setValue(vTag.checked);
                         }
                     }
@@ -284,7 +284,7 @@ export class RdioScannerAdminSystemsSelectComponent implements OnDestroy {
             for (const fgSystem of faSystems.controls) {
                 const faTalkgroups = fgSystem.get('talkgroups') as FormArray;
                 for (const fgTalkgroup of faTalkgroups.controls) {
-                    if (fgTalkgroup.value.tagId === fgTag.value.id) {
+                    if (this.toIdArray(fgTalkgroup.value.tagIds).includes(fgTag.value.id)) {
                         if (fgTalkgroup.value.checked) on++; else off++;
                     }
                 }
@@ -292,6 +292,23 @@ export class RdioScannerAdminSystemsSelectComponent implements OnDestroy {
             this.indeterminate.tags[index] = !!off && !!on;
             fgTag.get('checked')?.setValue(!off && on, { emitEvent: false });
         }
+    }
+
+    private toId(value: unknown): number | null {
+        const id = typeof value === 'number' ? value : Number(value);
+        return Number.isFinite(id) && id > 0 ? id : null;
+    }
+
+    private toIdArray(values: unknown): number[] {
+        const list = Array.isArray(values)
+            ? values
+            : values === null || values === undefined || values === ''
+                ? []
+                : [values];
+
+        return list
+            .map((value) => this.toId(value))
+            .filter((value): value is number => typeof value === 'number');
     }
 
     ngOnDestroy(): void {

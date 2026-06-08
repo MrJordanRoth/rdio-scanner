@@ -48,7 +48,7 @@
         <span class="mat-caption">Groups to which this talkgroups belongs.</span>
       </p>
       <mat-form-field floatLabel="auto">
-        <mat-select formControlName="groupIds" placeholder="Groups" [multiple]="true">
+        <mat-select formControlName="groupIds" placeholder="Groups" [multiple]="true" [compareWith]="compareByNumericId">
           <mat-option *ngFor="let group of groups" [value]="group.id">
             {{ group.label }}
           </mat-option>
@@ -64,7 +64,7 @@
         <span class="mat-caption">Tag to which this talkgroups belongs.</span>
       </p>
       <mat-form-field floatLabel="auto">
-        <mat-select formControlName="tagId" placeholder="Tag">
+        <mat-select formControlName="tagId" placeholder="Tag" [multiple]="true" [compareWith]="compareByNumericId">
           <mat-option *ngFor="let tag of tags" [value]="tag.id">
             {{ tag.label }}
           </mat-option>
@@ -91,11 +91,17 @@
     </div>
     <div class="row">
       <p>
-        <span class="mat-body">Delay</span><br>
-        <span class="mat-caption">Delay in minutes before propagating calls to clients.</span>
+        <span class="mat-body">Delay (minutes)</span><br>
+        <span class="mat-caption">0 disables delay. Values greater than 0 must be between 1 and 10 minutes.</span>
       </p>
       <mat-form-field floatLabel="auto">
-        <input type="number" min="0" step="1" matInput formControlName="delay" placeholder="Minutes">
+        <input type="number" min="0" max="10" step="1" matInput formControlName="delaySeconds" placeholder="Minutes">
+        <mat-error *ngIf="form.get('delaySeconds')?.hasError('range')">
+          Delay must be 0, or from 1 to 10 minutes
+        </mat-error>
+        <mat-error *ngIf="form.get('delaySeconds')?.hasError('invalid')">
+          Delay must be a whole number
+        </mat-error>
       </mat-form-field>
     </div>
     <div class="row">

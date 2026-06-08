@@ -18,11 +18,13 @@
  */
 
 import { NgModule } from '@angular/core';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { environment } from '../environments/environment';
 import { AppComponent } from './app.component';
+import { RdioScannerAdminAuthInterceptor } from './components/rdio-scanner/admin/admin-auth.interceptor';
 import { RdioScannerModule } from './components/rdio-scanner/rdio-scanner.module';
 import { AppSharedModule } from './shared/shared.module';
 import { routes } from './app.routes';
@@ -30,6 +32,14 @@ import { routes } from './app.routes';
 @NgModule({
     bootstrap: [AppComponent],
     declarations: [AppComponent],
+    providers: [
+        provideHttpClient(withInterceptorsFromDi()),
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: RdioScannerAdminAuthInterceptor,
+            multi: true,
+        },
+    ],
     imports: [
         RdioScannerModule,
         AppSharedModule.forRoot({

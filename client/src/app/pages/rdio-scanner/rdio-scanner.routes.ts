@@ -18,6 +18,10 @@
  */
 
 import { Routes } from '@angular/router';
+import { adminPortalGuard, authGuard, mainPlayerGuard } from '../../shared/auth/auth.guard';
+import { AuthLoginPageComponent } from './auth/login.component';
+import { AuthProfilePageComponent } from './auth/profile.component';
+import { AuthRegisterPageComponent } from './auth/register.component';
 import { RdioScannerMainPageComponent } from './rdio-scanner-main.component';
 import { RdioScannerPageComponent } from './rdio-scanner.component';
 
@@ -27,15 +31,31 @@ export const routes: Routes = [
         component: RdioScannerPageComponent,
         children: [
             {
+                path: 'login',
+                component: AuthLoginPageComponent,
+            },
+            {
+                path: 'register',
+                component: AuthRegisterPageComponent,
+            },
+            {
+                path: 'profile',
+                canActivate: [authGuard],
+                component: AuthProfilePageComponent,
+            },
+            {
                 path: '',
+                canActivate: [mainPlayerGuard],
                 component: RdioScannerMainPageComponent,
             },
             {
                 path: 'reset',
+                canActivate: [mainPlayerGuard],
                 component: RdioScannerMainPageComponent,
             },
             {
                 path: 'admin',
+                canActivate: [authGuard, adminPortalGuard],
                 loadChildren: () => import('./admin/admin.module').then((module) => module.RdioScannerAdminPageModule),
             },
         ],

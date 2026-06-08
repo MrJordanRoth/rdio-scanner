@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"gopkg.in/ini.v1"
 )
@@ -66,7 +67,7 @@ func NewConfig() *Config {
 		defaultAdminUrl         = "/admin"
 		defaultConfigFile       = "rdio-scanner.ini"
 		defaultDbType           = DbTypeSqlite
-		defaultDbFile           = "rdio-scanner.db"
+		defaultDbFile           = "data/rdio-scanner.db"
 		defaultDbHost           = "localhost"
 		defaultDbPortMariaDb    = uint(3306)
 		defaultDbPortPostgreSql = uint(5432)
@@ -189,6 +190,13 @@ func NewConfig() *Config {
 		if !(config.DbType == DbTypeMariadb || config.DbType == DbTypeMysql || config.DbType == DbTypePostgresql || config.DbType == DbTypeSqlite) {
 			fmt.Printf("unknown database type %s\n", config.DbType)
 			return nil
+		}
+
+		if config.DbType == DbTypeSqlite {
+			dbFile := strings.TrimSpace(config.DbFile)
+			if dbFile == "" || strings.EqualFold(dbFile, ":memory:") || strings.EqualFold(dbFile, "file::memory:") {
+				config.DbFile = defaultDbFile
+			}
 		}
 	}
 

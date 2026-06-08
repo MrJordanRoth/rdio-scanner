@@ -1,15 +1,5 @@
 <form *ngIf="form as f" autocomplete="off" [formGroup]="f" (ngSubmit)="save()">
   <mat-accordion displayMode="flat">
-    <mat-expansion-panel (afterCollapse)="accessComponent.closeAll()">
-      <mat-expansion-panel-header>
-        <mat-panel-title>
-          <mat-icon>manage_accounts</mat-icon>
-          Access
-          <mat-icon *ngIf="f.get('access')?.invalid" color="warn">error</mat-icon>
-        </mat-panel-title>
-      </mat-expansion-panel-header>
-      <rdio-scanner-admin-access #accessComponent [form]="access"></rdio-scanner-admin-access>
-    </mat-expansion-panel>
     <mat-expansion-panel (afterCollapse)="apikeyComponent.closeAll()">
       <mat-expansion-panel-header>
         <mat-panel-title>

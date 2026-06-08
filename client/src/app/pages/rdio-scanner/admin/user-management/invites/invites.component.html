@@ -1,0 +1,53 @@
+<mat-card appearance="outlined" class="management-card">
+    <mat-card-header>
+        <mat-card-title>Invites</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+        <form [formGroup]="form" (ngSubmit)="save()" class="management-form">
+            <mat-form-field>
+                <mat-label>Invite Code</mat-label>
+                <input matInput formControlName="inviteCode" />
+                <button mat-stroked-button matSuffix type="button" (click)="generateInviteCode()">Generate</button>
+            </mat-form-field>
+
+            <mat-form-field>
+                <mat-label>Expiration Date</mat-label>
+                <input matInput [matDatepicker]="picker" formControlName="expirationDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field>
+                <mat-label>Role</mat-label>
+                <mat-select formControlName="roleId">
+                    <mat-option *ngFor="let role of roles" [value]="role.id || 0">
+                        {{ role.name }}
+                    </mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-checkbox formControlName="isUsed">Used</mat-checkbox>
+
+            <div class="actions">
+                <button mat-flat-button color="primary" type="submit">{{ selectedInviteId ? 'Update' : 'Create' }}</button>
+                <button mat-button type="button" (click)="resetForm()">Reset</button>
+            </div>
+        </form>
+
+        <mat-list>
+            <mat-list-item *ngFor="let invite of invites">
+                <div class="row-item">
+                    <div>
+                        <div class="mat-body-1">{{ invite.inviteCode }}</div>
+                        <div class="mat-caption">Used: {{ invite.isUsed ? 'Yes' : 'No' }} | Role ID: {{ invite.roleId || 0 }}</div>
+                    </div>
+                    <div class="row-actions">
+                        <button mat-button type="button" (click)="edit(invite)">Edit</button>
+                        <button mat-button color="warn" type="button" (click)="delete(invite)">Delete</button>
+                    </div>
+                </div>
+            </mat-list-item>
+        </mat-list>
+    </mat-card-content>
+</mat-card>

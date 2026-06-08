@@ -3,3 +3,13 @@
 *.token
 /build
 /dist
+
+# Build artifacts
+*.exe
+/rdio-scanner
+
+# Database and local state
+*.db
+*.sqlite
+*.sqlite3
+data/

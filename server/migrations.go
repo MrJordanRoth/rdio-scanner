@@ -210,6 +210,73 @@ func migrateApikeys(db *Database) error {
 	return nil
 }
 
+func migrateAccessCodes(db *Database) error {
+	var (
+		err   error
+		query string
+		rows  *sql.Rows
+		tx    *sql.Tx
+
+		code      string
+		userId    uint64
+		createdAt uint64
+
+		existingCount uint
+	)
+
+	formatError := errorFormatter("migration", "migrateAccessCodes")
+
+	query = `SELECT COUNT(*) FROM "accessCodes"`
+	if err = db.Sql.QueryRow(query).Scan(&existingCount); err != nil {
+		return nil
+	}
+
+	if existingCount > 0 {
+		return nil
+	}
+
+	query = `SELECT "tokenString", "userId", "createdAt" FROM "mobileTokens"`
+	if rows, err = db.Sql.Query(query); err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	migrated := false
+	if tx, err = db.Sql.Begin(); err != nil {
+		return formatError(err, "")
+	}
+
+	for rows.Next() {
+		if err = rows.Scan(&code, &userId, &createdAt); err != nil {
+			continue
+		}
+
+		query = fmt.Sprintf(`INSERT INTO "accessCodes" ("userId", "code", "label", "createdAt") VALUES (%d, '%s', '%s', %d)`, userId, escapeQuotes(code), "Migrated Mobile Token", createdAt)
+		if _, err = tx.Exec(query); err != nil {
+			log.Println(formatError(err, query))
+			continue
+		}
+
+		migrated = true
+	}
+
+	if err = rows.Err(); err != nil {
+		tx.Rollback()
+		return formatError(err, "")
+	}
+
+	if err = tx.Commit(); err != nil {
+		tx.Rollback()
+		return formatError(err, "")
+	}
+
+	if migrated {
+		log.Println("migrated accessCodes from mobileTokens")
+	}
+
+	return nil
+}
+
 func migrateCalls(db *Database) error {
 	var (
 		err   error
@@ -1475,6 +1542,91 @@ func migrateUnits(db *Database) error {
 	if err = tx.Commit(); err != nil {
 		tx.Rollback()
 		return formatError(err, "")
+	}
+
+	return nil
+}
+
+func migrateRoleManagers(db *Database) error {
+	var queries []string
+
+	formatError := errorFormatter("migration", "migrateRoleManagers")
+
+	switch db.Config.DbType {
+	case DbTypePostgresql:
+		queries = []string{
+			`ALTER TABLE "roles" ADD COLUMN IF NOT EXISTS "delaySeconds" integer NOT NULL DEFAULT 0`,
+			`ALTER TABLE "roles" ADD COLUMN IF NOT EXISTS "connectionLimit" integer NOT NULL DEFAULT 0`,
+			`CREATE TABLE IF NOT EXISTS "roleManagers" ("roleManagerId" bigserial NOT NULL PRIMARY KEY, "roleId" bigint NOT NULL, "userId" bigint NOT NULL, UNIQUE ("roleId", "userId"), CONSTRAINT "roleManagers_roleId" FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "roleManagers_userId" FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+			`CREATE TABLE IF NOT EXISTS "roleSystems" ("roleSystemId" bigserial NOT NULL PRIMARY KEY, "roleId" bigint NOT NULL, "systemId" bigint NOT NULL, UNIQUE ("roleId", "systemId"), CONSTRAINT "roleSystems_roleId" FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "roleSystems_systemId" FOREIGN KEY ("systemId") REFERENCES "systems" ("systemId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+			`CREATE TABLE IF NOT EXISTS "roleTalkgroups" ("roleTalkgroupId" bigserial NOT NULL PRIMARY KEY, "roleId" bigint NOT NULL, "talkgroupId" bigint NOT NULL, UNIQUE ("roleId", "talkgroupId"), CONSTRAINT "roleTalkgroups_roleId" FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "roleTalkgroups_talkgroupId" FOREIGN KEY ("talkgroupId") REFERENCES "talkgroups" ("talkgroupId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+		}
+
+	case DbTypeMariadb, DbTypeMysql:
+		queries = []string{
+			`ALTER TABLE "roles" ADD COLUMN IF NOT EXISTS "delaySeconds" integer NOT NULL DEFAULT 0`,
+			`ALTER TABLE "roles" ADD COLUMN IF NOT EXISTS "connectionLimit" integer NOT NULL DEFAULT 0`,
+			`CREATE TABLE IF NOT EXISTS "roleManagers" ("roleManagerId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY, "roleId" bigint NOT NULL, "userId" bigint NOT NULL, UNIQUE ("roleId", "userId"), FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+			`CREATE TABLE IF NOT EXISTS "roleSystems" ("roleSystemId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY, "roleId" bigint NOT NULL, "systemId" bigint NOT NULL, UNIQUE ("roleId", "systemId"), FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("systemId") REFERENCES "systems" ("systemId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+			`CREATE TABLE IF NOT EXISTS "roleTalkgroups" ("roleTalkgroupId" bigint NOT NULL AUTO_INCREMENT PRIMARY KEY, "roleId" bigint NOT NULL, "talkgroupId" bigint NOT NULL, UNIQUE ("roleId", "talkgroupId"), FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("talkgroupId") REFERENCES "talkgroups" ("talkgroupId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+		}
+
+	case DbTypeSqlite:
+		queries = []string{
+			`ALTER TABLE "roles" ADD COLUMN "delaySeconds" integer NOT NULL DEFAULT 0`,
+			`ALTER TABLE "roles" ADD COLUMN "connectionLimit" integer NOT NULL DEFAULT 0`,
+			`CREATE TABLE IF NOT EXISTS "roleManagers" ("roleManagerId" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "roleId" integer NOT NULL, "userId" integer NOT NULL, UNIQUE ("roleId", "userId"), FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("userId") REFERENCES "users" ("userId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+			`CREATE TABLE IF NOT EXISTS "roleSystems" ("roleSystemId" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "roleId" integer NOT NULL, "systemId" integer NOT NULL, UNIQUE ("roleId", "systemId"), FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("systemId") REFERENCES "systems" ("systemId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+			`CREATE TABLE IF NOT EXISTS "roleTalkgroups" ("roleTalkgroupId" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "roleId" integer NOT NULL, "talkgroupId" integer NOT NULL, UNIQUE ("roleId", "talkgroupId"), FOREIGN KEY ("roleId") REFERENCES "roles" ("roleId") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("talkgroupId") REFERENCES "talkgroups" ("talkgroupId") ON DELETE CASCADE ON UPDATE CASCADE)`,
+		}
+	}
+
+	for _, query := range queries {
+		if _, err := db.Sql.Exec(query); err != nil {
+			message := err.Error()
+			if strings.Contains(message, "duplicate column") || strings.Contains(message, "already exists") {
+				continue
+			}
+			return formatError(err, query)
+		}
+	}
+
+	return nil
+}
+
+func migrateUserSuspensionAndInviteRoles(db *Database) error {
+	var queries []string
+
+	formatError := errorFormatter("migration", "migrateUserSuspensionAndInviteRoles")
+
+	switch db.Config.DbType {
+	case DbTypePostgresql:
+		queries = []string{
+			`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "isSuspended" boolean NOT NULL DEFAULT false`,
+			`ALTER TABLE "invites" ADD COLUMN IF NOT EXISTS "roleId" bigint NOT NULL DEFAULT 0`,
+		}
+
+	case DbTypeMariadb, DbTypeMysql:
+		queries = []string{
+			`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "isSuspended" boolean NOT NULL DEFAULT false`,
+			`ALTER TABLE "invites" ADD COLUMN IF NOT EXISTS "roleId" bigint NOT NULL DEFAULT 0`,
+		}
+
+	case DbTypeSqlite:
+		queries = []string{
+			`ALTER TABLE "users" ADD COLUMN "isSuspended" integer(1) NOT NULL DEFAULT 0`,
+			`ALTER TABLE "invites" ADD COLUMN "roleId" integer NOT NULL DEFAULT 0`,
+		}
+	}
+
+	for _, query := range queries {
+		if _, err := db.Sql.Exec(query); err != nil {
+			message := err.Error()
+			if strings.Contains(message, "duplicate column") || strings.Contains(message, "already exists") {
+				continue
+			}
+			return formatError(err, query)
+		}
 	}
 
 	return nil
